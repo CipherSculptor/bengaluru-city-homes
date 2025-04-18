@@ -62,14 +62,32 @@ const Login = () => {
     setLoginSuccess(true); // Show loading indicator immediately
 
     try {
+      // Check if we're in production
+      const isProduction = window.location.hostname !== "localhost";
+      console.log(
+        `Environment: ${isProduction ? "Production" : "Development"}`
+      );
       console.log("Initiating Google sign-in");
 
-      // Sign-in with Google (popup with redirect fallback)
+      // Sign-in with Google (auto method will use redirect in production)
       const result = await signInWithGoogle("auto");
 
       if (result.success) {
-        if (!result.redirect) {
-          // Sign-in successful with popup
+        if (isProduction || result.redirect) {
+          // For production or redirect flow
+          console.log("Redirect initiated, waiting for completion...");
+
+          // Show a message after a delay if the page hasn't reloaded
+          setTimeout(() => {
+            setError(
+              "Authentication in progress. Please wait while we sign you in..."
+            );
+          }, 3000);
+
+          // Keep the loading state active
+          return;
+        } else {
+          // Sign-in successful with popup (development only)
           console.log("Google sign-in successful, redirecting...");
           setLoginSuccess(true);
 
@@ -78,13 +96,6 @@ const Login = () => {
             const from = location.state?.from?.pathname || "/";
             navigate(from, { replace: true });
           }, 1000);
-        } else {
-          // Redirect is happening, hide the loading indicator after a longer timeout
-          // since the page will redirect and this UI won't be visible anyway
-          setTimeout(() => {
-            setLoading(false);
-            setLoginSuccess(false);
-          }, 15000); // Increased to 15 seconds
         }
       } else {
         // Handle error from Google sign-in
@@ -94,9 +105,7 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Google sign-in error:", error);
-      setError(
-        "Failed to sign in with Google. Please try the direct link below."
-      );
+      setError("Failed to sign in with Google. Please try again.");
       setLoading(false);
       setLoginSuccess(false);
     }
@@ -110,12 +119,33 @@ const Login = () => {
     try {
       console.log("Using direct link for Google sign-in");
 
+      // Check if we're in production
+      const isProduction = window.location.hostname !== "localhost";
+      console.log(
+        `Environment: ${isProduction ? "Production" : "Development"}`
+      );
+
       // Call the direct link method in AuthContext
       const result = await signInWithGoogle("direct-link");
 
       if (result.success) {
-        if (result.completed) {
-          // If authentication completed successfully
+        // For production, we'll always get a redirect
+        if (isProduction || result.redirect) {
+          // If redirect was initiated, show a message
+          console.log("Redirect initiated, waiting for completion...");
+          setLoginSuccess(true);
+
+          // Show a message after a delay if the page hasn't reloaded
+          setTimeout(() => {
+            setError(
+              "Authentication in progress. Please wait while we sign you in..."
+            );
+          }, 3000);
+
+          // Keep the loading state active
+          return;
+        } else if (result.completed) {
+          // If authentication completed successfully (development only)
           console.log("Direct link sign-in successful");
           setLoginSuccess(true);
 
@@ -124,18 +154,6 @@ const Login = () => {
             const from = location.state?.from?.pathname || "/";
             navigate(from, { replace: true });
           }, 1000);
-        } else if (result.redirect) {
-          // If redirect was initiated, show a message
-          console.log("Redirect initiated, page will reload");
-          setLoginSuccess(true);
-
-          // Show a message after a delay if the page hasn't reloaded
-          setTimeout(() => {
-            setError(
-              "If you're not redirected automatically, please check your popup blocker settings."
-            );
-            setLoading(false);
-          }, 8000);
         } else {
           // Unexpected result
           throw new Error("Unexpected authentication result");
@@ -146,7 +164,7 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Direct link sign-in error:", error);
-      setError("Failed to sign in with direct link. Please try again later.");
+      setError("Failed to sign in with Google. Please try again later.");
       setLoading(false);
       setLoginSuccess(false);
     }
