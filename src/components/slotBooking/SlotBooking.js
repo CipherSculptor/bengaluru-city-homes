@@ -60,9 +60,6 @@ const SlotBooking = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [animateIn, setAnimateIn] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
-  const [isServerAvailable, setIsServerAvailable] = useState(true);
-  const [emailSent, setEmailSent] = useState(false);
-  const [emailPreviewUrl, setEmailPreviewUrl] = useState(null);
 
   // Check if a specific project/apartment was passed in the location state
   useEffect(() => {
@@ -101,13 +98,12 @@ const SlotBooking = () => {
         );
       const isProduction = window.location.hostname !== "localhost";
 
-      // For production or mobile devices, always show server as available
+      // For production or mobile devices, always assume server is available
       if (isProduction || isMobile) {
         console.log(
           "Production or mobile environment detected, assuming server is available"
         );
-        setIsServerAvailable(true);
-        return;
+        return true;
       }
 
       // Only in development on desktop, try to check server availability
@@ -153,14 +149,14 @@ const SlotBooking = () => {
 
       // If we're in development and couldn't connect to any endpoint, show as offline
       // Otherwise, always show as online
-      setIsServerAvailable(serverAvailable);
       console.log(
         `Booking server availability: ${serverAvailable ? "Online" : "Offline"}`
       );
+      return serverAvailable;
     } catch (error) {
       console.log("Error checking server availability:", error);
       // For safety, assume server is available if there's an error in the check
-      setIsServerAvailable(true);
+      return false;
     }
   };
 
@@ -226,7 +222,54 @@ const SlotBooking = () => {
     }, 300);
   };
 
-  const handleSubmit = async (e) => {
+  // Function to generate Excel file from booking data
+  const generateExcelFile = (bookingData) => {
+    try {
+      // Create a simple CSV string (easier than full Excel)
+      const headers = [
+        "Property",
+        "Date",
+        "Time",
+        "Name",
+        "Email",
+        "Contact Number",
+      ];
+      const values = [
+        bookingData.property,
+        bookingData.date,
+        bookingData.time,
+        bookingData.name,
+        bookingData.email,
+        bookingData.contactNumber,
+      ];
+
+      // Create CSV content
+      let csvContent = headers.join(",") + "\n";
+      csvContent += values.join(",") + "\n";
+
+      // Create a blob and download link
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      // Create download link and trigger click
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `booking_${bookingData.name}_${bookingData.date}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      return true;
+    } catch (error) {
+      console.error("Error generating Excel file:", error);
+      return false;
+    }
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.timeSlot) {
@@ -245,197 +288,55 @@ const SlotBooking = () => {
         contactNumber: formData.contactNumber,
       };
 
-      // Detect if we're in a mobile device or production environment
-      const isMobile =
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        );
-      const isProduction = window.location.hostname !== "localhost";
-
-      console.log(
-        `Environment: ${isProduction ? "Production" : "Development"}, Device: ${
-          isMobile ? "Mobile" : "Desktop"
-        }`
-      );
-
-      // For production or mobile devices, always assume server is available
-      let serverAvailable = isProduction || isMobile;
-      let success = false;
-      let lastError = null;
-      let responseData = null;
-
-      if (isProduction || isMobile) {
-        console.log(
-          "Production or mobile environment detected, using /api/book-slot endpoint"
-        );
-
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for production
-
-          // Get the API URL from environment variables or use default
-          const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
-          const apiUrl = `${apiBaseUrl}/book-slot`;
-          console.log("Using API URL:", apiUrl);
-
-          const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify(formData),
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-          console.log("Response status:", response.status);
-
-          if (response.ok) {
-            responseData = await response.json();
-            success = true;
-            serverAvailable = true;
-
-            // Check if email was sent successfully
-            if (responseData.emailSent) {
-              setEmailSent(true);
-              if (responseData.emailPreviewUrl) {
-                setEmailPreviewUrl(responseData.emailPreviewUrl);
-                console.log("Email preview URL:", responseData.emailPreviewUrl);
-              }
-            } else {
-              setEmailSent(false);
-            }
-          } else {
-            const errorText = await response.text();
-            console.error("Error response:", errorText);
-            lastError = new Error(
-              `Booking failed: ${response.status} ${response.statusText}`
-            );
-
-            // In production, we'll still consider the server available and save locally
-            // This ensures a better user experience
-            serverAvailable = true;
-          }
-        } catch (err) {
-          console.error("Error submitting booking:", err);
-          lastError = err;
-
-          // In production, we'll still consider the server available and save locally
-          // This ensures a better user experience
-          serverAvailable = true;
-        }
-      } else {
-        // In development, try multiple endpoints
-        // Get the API URL from environment variables or use default
-        const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
-        const possibleUrls = [
-          `${apiBaseUrl}/book-slot`,
-          "/api/book-slot",
-          "http://localhost:5001/api/book-slot",
-          "http://127.0.0.1:5001/api/book-slot",
-        ];
-
-        // Try to connect to the server
-        for (const apiUrl of possibleUrls) {
-          try {
-            console.log("Attempting to submit booking to:", apiUrl);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-            const response = await fetch(apiUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-              },
-              body: JSON.stringify(formData),
-              signal: controller.signal,
-            });
-
-            clearTimeout(timeoutId);
-            console.log("Response status:", response.status);
-            serverAvailable = true;
-
-            if (response.ok) {
-              responseData = await response.json();
-              success = true;
-
-              // Check if email was sent successfully
-              if (responseData.emailSent) {
-                setEmailSent(true);
-                if (responseData.emailPreviewUrl) {
-                  setEmailPreviewUrl(responseData.emailPreviewUrl);
-                  console.log(
-                    "Email preview URL:",
-                    responseData.emailPreviewUrl
-                  );
-                }
-              } else {
-                setEmailSent(false);
-              }
-
-              break;
-            } else {
-              const errorText = await response.text();
-              console.error("Error response:", errorText);
-              lastError = new Error(
-                `Booking failed: ${response.status} ${response.statusText}`
-              );
-            }
-          } catch (err) {
-            console.error(`Error submitting to ${apiUrl}:`, err);
-            lastError = err;
-            // Continue to the next URL
-          }
-        }
-      }
-
-      // If server is not available, we'll still save the booking locally
-      if (!serverAvailable) {
-        console.log("Server not available, saving booking locally only");
-        // Update server availability state
-        setIsServerAvailable(false);
-
-        // Add the booking to context (which saves to localStorage)
-        addBooking(bookingData);
-
-        // Show success message with a note about server unavailability
-        setShowSuccess(true);
-        setBookingComplete(true);
-
-        // Scroll to success message
-        if (successRef.current) {
-          successRef.current.scrollIntoView({ behavior: "smooth" });
-        }
-
-        // Reset form for new bookings
-        setFormData({
-          name: "",
-          email: "",
-          contactNumber: "",
-          apartment: location.state?.apartment || "",
-          visitDate: "",
-          timeSlot: "",
-        });
-        setCurrentStep(1);
-
-        // Return early - we've handled the offline case
-        return;
-      } else {
-        // Server is available
-        setIsServerAvailable(true);
-      }
-
-      // If server was available but request failed
-      if (!success) {
-        throw lastError || new Error("Failed to connect to the server");
-      }
-
-      // If we get here, the booking was successful on the server
-      // Add the booking to context
+      // Always save booking locally
       addBooking(bookingData);
+
+      // Generate Excel file
+      generateExcelFile(bookingData);
+
+      // Show success message
+      setShowSuccess(true);
+      setBookingComplete(true);
+      // Always show as available
+
+      // Set email status
+      setEmailSent(false);
+
+      // Scroll to success message
+      if (successRef.current) {
+        successRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+
+      // Reset form for new bookings
+      setFormData({
+        name: "",
+        email: "",
+        contactNumber: "",
+        apartment: location.state?.apartment || "",
+        visitDate: "",
+        timeSlot: "",
+      });
+      setCurrentStep(1);
+    } catch (error) {
+      console.error("Error:", error);
+
+      // Create the booking data object for fallback
+      const bookingData = {
+        property: formData.apartment,
+        date: formData.visitDate,
+        time: formData.timeSlot,
+        name: formData.name,
+        email: formData.email,
+        contactNumber: formData.contactNumber,
+      };
+
+      // Add the booking to context anyway (fallback mechanism)
+      addBooking(bookingData);
+
+      // Show a more user-friendly error message
+      alert(
+        "Your booking has been saved locally. You can view it in your profile."
+      );
 
       // Show success message
       setShowSuccess(true);
@@ -456,86 +357,24 @@ const SlotBooking = () => {
         timeSlot: "",
       });
       setCurrentStep(1);
-    } catch (error) {
-      console.error("Error:", error);
-
-      // Set server availability to false
-      setIsServerAvailable(false);
-
-      // Create the booking data object for fallback
-      const bookingData = {
-        property: formData.apartment,
-        date: formData.visitDate,
-        time: formData.timeSlot,
-        name: formData.name,
-        email: formData.email,
-        contactNumber: formData.contactNumber,
-      };
-
-      // Add the booking to context anyway (fallback mechanism)
-      addBooking(bookingData);
-
-      // Show a more user-friendly error message
-      const confirmSave = window.confirm(
-        "There was an issue connecting to our booking server, but we've saved your booking locally. " +
-          "Your booking will be synchronized when the server is available. " +
-          "Click OK to view your booking details."
-      );
-
-      if (confirmSave) {
-        // Show success message
-        setShowSuccess(true);
-        setBookingComplete(true);
-
-        // Scroll to success message
-        if (successRef.current) {
-          successRef.current.scrollIntoView({ behavior: "smooth" });
-        }
-
-        // Reset form for new bookings
-        setFormData({
-          name: "",
-          email: "",
-          contactNumber: "",
-          apartment: location.state?.apartment || "",
-          visitDate: "",
-          timeSlot: "",
-        });
-        setCurrentStep(1);
-      }
     }
   };
 
   // Server status indicator component
   const ServerStatusIndicator = () => {
-    // IMPORTANT: Always show server as online in production or on mobile devices
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
-    const isProduction = window.location.hostname !== "localhost";
-    const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
-
-    // Force online status in production or on mobile
-    const showAsOnline = isProduction || isMobile || isServerAvailable;
-
     return (
       <div
         className="server-status-indicator"
         style={{
           marginBottom: "15px",
           fontSize: "0.8rem",
-          color: showAsOnline ? "#4CAF50" : "#f44336",
+          color: "#4CAF50",
           display: "flex",
           alignItems: "center",
           padding: "8px 12px",
-          backgroundColor: showAsOnline
-            ? "rgba(76, 175, 80, 0.1)"
-            : "rgba(244, 67, 54, 0.1)",
+          backgroundColor: "rgba(76, 175, 80, 0.1)",
           borderRadius: "4px",
-          border: `1px solid ${
-            showAsOnline ? "rgba(76, 175, 80, 0.3)" : "rgba(244, 67, 54, 0.3)"
-          }`,
+          border: "1px solid rgba(76, 175, 80, 0.3)",
         }}
       >
         <span
@@ -544,17 +383,13 @@ const SlotBooking = () => {
             width: "10px",
             height: "10px",
             borderRadius: "50%",
-            backgroundColor: showAsOnline ? "#4CAF50" : "#f44336",
+            backgroundColor: "#4CAF50",
             marginRight: "8px",
-            boxShadow: `0 0 5px ${
-              showAsOnline ? "rgba(76, 175, 80, 0.5)" : "rgba(244, 67, 54, 0.5)"
-            }`,
+            boxShadow: "0 0 5px rgba(76, 175, 80, 0.5)",
           }}
         ></span>
         <span style={{ fontWeight: "500" }}>
-          {showAsOnline
-            ? `Booking server is online - your bookings will be saved to Excel (API: ${apiBaseUrl})`
-            : "Booking server is offline - bookings will be saved locally"}
+          Your booking will be saved locally and can be downloaded as Excel
         </span>
       </div>
     );
@@ -831,47 +666,11 @@ const SlotBooking = () => {
             </p>
 
             <p className="email-notification">
-              {isServerAvailable ? (
-                emailSent ? (
-                  <>
-                    <span className="notification-icon">✉</span>
-                    <span>
-                      A confirmation has been sent to your email.
-                      {emailPreviewUrl && (
-                        <span>
-                          {" "}
-                          <a
-                            href={emailPreviewUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              color: "#cfe56f",
-                              textDecoration: "underline",
-                            }}
-                          >
-                            View email
-                          </a>
-                        </span>
-                      )}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="notification-icon">✉</span>
-                    <span>
-                      We'll send a confirmation to your email shortly.
-                    </span>
-                  </>
-                )
-              ) : (
-                <>
-                  <span className="notification-icon">💾</span>
-                  <span>
-                    Your booking has been saved locally. It will be synchronized
-                    when the server is available.
-                  </span>
-                </>
-              )}
+              <span className="notification-icon">💾</span>
+              <span>
+                Your booking has been saved locally and downloaded as an Excel
+                file. You can also view your booking details in your profile.
+              </span>
             </p>
 
             <div className="success-actions">
