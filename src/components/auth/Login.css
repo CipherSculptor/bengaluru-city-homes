@@ -596,6 +596,7 @@
 }
 
 .google-btn,
+.google-redirect-btn,
 .facebook-btn {
   flex: 1;
   display: flex;
@@ -609,9 +610,17 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
+  margin-bottom: 10px;
+}
+
+/* Style for the alternative Google sign-in button */
+.google-redirect-btn {
+  background-color: #f5f5f5;
+  border-color: #d0d0d0;
 }
 
 .google-btn svg,
+.google-redirect-btn svg,
 .facebook-btn svg {
   width: 22px;
   height: 22px;
@@ -619,6 +628,7 @@
 }
 
 .google-btn:hover,
+.google-redirect-btn:hover,
 .facebook-btn:hover {
   background-color: #f8fafd;
   transform: translateY(-3px);
@@ -626,13 +636,19 @@
   border-color: #d0d0d0;
 }
 
+.google-redirect-btn:hover {
+  background-color: #f0f0f0;
+}
+
 .google-btn:active,
+.google-redirect-btn:active,
 .facebook-btn:active {
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.03);
 }
 
 .google-btn:disabled,
+.google-redirect-btn:disabled,
 .facebook-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -640,10 +656,15 @@
 }
 
 .google-btn span,
+.google-redirect-btn span,
 .facebook-btn span {
   font-size: 14px;
   font-weight: 500;
   color: #555;
+}
+
+.google-redirect-btn span {
+  color: #666;
 }
 
 /* Responsive */
@@ -715,6 +736,12 @@
 
   .social-login {
     flex-direction: column;
+  }
+
+  .google-btn,
+  .google-redirect-btn,
+  .facebook-btn {
+    width: 100%;
   }
 
   .login-header h1 {

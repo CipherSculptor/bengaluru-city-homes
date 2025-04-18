@@ -7,6 +7,8 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { auth } from "../firebase/config";
 
@@ -72,7 +74,53 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // No redirect handler needed with direct popup method
+  // Alternative method using redirect (as fallback)
+  const signInWithGoogleRedirect = async () => {
+    try {
+      console.log("Starting Google sign-in with redirect");
+
+      // Create provider
+      const provider = new GoogleAuthProvider();
+
+      // Minimal configuration
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
+
+      // Redirect method
+      await signInWithRedirect(auth, provider);
+
+      // This line won't be reached immediately due to the redirect
+      return { success: true, redirect: true };
+    } catch (error) {
+      console.error("Google redirect sign-in error:", error);
+      return {
+        success: false,
+        error: "Failed to sign in with Google redirect",
+      };
+    }
+  };
+
+  // Handle redirect result
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        // Check for redirect result when the page loads
+        const result = await getRedirectResult(auth);
+
+        if (result && result.user) {
+          // User successfully signed in with redirect
+          console.log("Redirect sign-in successful");
+          setCurrentUser(result.user);
+        }
+      } catch (error) {
+        console.error("Error with redirect sign-in:", error);
+      }
+    };
+
+    // Run once when the component mounts
+    handleRedirectResult();
+  }, []);
 
   // Login function
   const login = async (email, password) => {
@@ -177,6 +225,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     signInWithGoogle,
+    signInWithGoogleRedirect,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
