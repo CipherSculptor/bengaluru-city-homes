@@ -9,11 +9,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from the React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../build')));
-}
-
 // Ensure the bookings directory exists
 const bookingsDir = path.join(__dirname, "bookings");
 if (!fs.existsSync(bookingsDir)) {
@@ -292,13 +287,6 @@ app.get("/api/all-bookings", async (_, res) => {
       .json({ success: false, message: "Error retrieving bookings" });
   }
 });
-
-// For any other GET request, serve the React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build', 'index.html'));
-  });
-}
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
