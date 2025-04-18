@@ -584,8 +584,41 @@
 /* Social Login */
 .social-login {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 15px;
+}
+
+/* Fallback message */
+.fallback-message {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.fallback-message p {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 10px;
+}
+
+.fallback-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #4285F4;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.fallback-link:hover {
+  background-color: #3367D6;
+  text-decoration: none;
+  color: white;
 }
 
 .google-btn,

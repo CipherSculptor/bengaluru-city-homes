@@ -36,25 +36,26 @@ export const AuthProvider = ({ children }) => {
   // Google sign-in function
   const signInWithGoogle = async () => {
     try {
+      console.log("Starting Google sign-in process...");
       const provider = new GoogleAuthProvider();
 
-      // Add scopes for better user experience
-      provider.addScope("profile");
+      // Simplify the provider configuration
       provider.addScope("email");
 
-      // Set custom parameters
+      // Use a simpler configuration
       provider.setCustomParameters({
         prompt: "select_account",
-        login_hint: "user@example.com",
-        access_type: "online", // Use 'offline' if you need a refresh token
       });
 
+      console.log("Initiating redirect to Google...");
       // Use redirect instead of popup for better compatibility
       await signInWithRedirect(auth, provider);
+      console.log("Redirect initiated"); // This may not be logged due to redirect
       return { success: true };
     } catch (error) {
       console.error("Google sign-in error:", error);
-      let errorMessage = "Failed to sign in with Google";
+      let errorMessage =
+        "Failed to sign in with Google: " + (error.message || error);
       return { success: false, error: errorMessage };
     }
   };
@@ -64,29 +65,53 @@ export const AuthProvider = ({ children }) => {
     const handleRedirectResult = async () => {
       try {
         console.log("Checking for redirect result...");
+        // Add a flag to localStorage to track if we're in the middle of auth
+        const isAuthInProgress = localStorage.getItem("authInProgress");
+        console.log("Auth in progress?", isAuthInProgress);
+
         const result = await getRedirectResult(auth);
+        console.log("Redirect result:", result ? "Received" : "None");
+
         if (result && result.user) {
           // User successfully signed in with redirect
-          console.log("Redirect sign-in successful");
+          console.log("Redirect sign-in successful", result.user.email);
           setCurrentUser(result.user);
+          localStorage.removeItem("authInProgress"); // Clear the flag
 
-          // You could add additional user data handling here
-          // For example, storing user preferences or redirecting to a specific page
+          // Show success alert
+          alert("Google sign-in successful!");
+
+          // Redirect to home page
+          window.location.href = "/";
         } else {
           console.log("No redirect result found");
+          if (isAuthInProgress) {
+            console.log("Auth was in progress but no result found");
+            localStorage.removeItem("authInProgress"); // Clear the flag
+          }
         }
       } catch (error) {
         console.error("Error with redirect sign-in:", error);
-        // You could add more specific error handling here based on error codes
+        localStorage.removeItem("authInProgress"); // Clear the flag on error
+        alert("Error with Google sign-in: " + error.message);
       }
     };
 
-    // Set a timeout to handle potential delays
-    const timeoutId = setTimeout(() => {
-      handleRedirectResult();
-    }, 500); // Small delay to ensure Firebase is fully initialized
+    // Execute immediately
+    handleRedirectResult();
 
-    return () => clearTimeout(timeoutId);
+    // Also set up a listener for auth state changes
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? user.email : "No user");
+      if (user) {
+        setCurrentUser(user);
+        localStorage.removeItem("authInProgress"); // Clear the flag
+      }
+    });
+
+    return () => {
+      unsubscribeAuth(); // Clean up the auth state listener
+    };
   }, []);
 
   // Login function
