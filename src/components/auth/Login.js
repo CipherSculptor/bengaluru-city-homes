@@ -12,8 +12,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
 
-  const { login, isAuthenticated, signInWithGoogle, signInWithGoogleRedirect } =
-    useAuth();
+  const { login, isAuthenticated, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -56,28 +55,37 @@ const Login = () => {
     setShowPassword(!showPassword);
   };
 
-  // Handler for popup sign-in (faster)
+  // Handler for Google sign-in (with popup and redirect fallback)
   const handleGoogleSignIn = async () => {
     setError("");
     setLoading(true);
     setLoginSuccess(true); // Show loading indicator immediately
 
     try {
-      console.log("Initiating Google sign-in with popup");
+      console.log("Initiating Google sign-in");
 
-      // Direct sign-in with Google (popup method)
+      // Sign-in with Google (popup with redirect fallback)
       const result = await signInWithGoogle();
 
       if (result.success) {
-        // Sign-in successful
-        console.log("Google sign-in successful, redirecting...");
-        setLoginSuccess(true);
+        if (!result.redirect) {
+          // Sign-in successful with popup
+          console.log("Google sign-in successful, redirecting...");
+          setLoginSuccess(true);
 
-        // Redirect after a short delay to show success message
-        setTimeout(() => {
-          const from = location.state?.from?.pathname || "/";
-          navigate(from, { replace: true });
-        }, 1000);
+          // Redirect after a short delay to show success message
+          setTimeout(() => {
+            const from = location.state?.from?.pathname || "/";
+            navigate(from, { replace: true });
+          }, 1000);
+        } else {
+          // Redirect is happening, hide the loading indicator after a few seconds
+          // since the page will redirect and this UI won't be visible anyway
+          setTimeout(() => {
+            setLoading(false);
+            setLoginSuccess(false);
+          }, 3000);
+        }
       } else {
         // Handle error from Google sign-in
         setError(result.error || "Failed to sign in with Google");
@@ -87,34 +95,6 @@ const Login = () => {
     } catch (error) {
       console.error("Google sign-in error:", error);
       setError("Failed to sign in with Google. Please try again.");
-      setLoading(false);
-      setLoginSuccess(false);
-    }
-  };
-
-  // Handler for redirect sign-in (alternative method)
-  const handleGoogleRedirectSignIn = async () => {
-    setError("");
-    setLoading(true);
-    setLoginSuccess(true); // Show loading indicator immediately
-
-    try {
-      console.log("Initiating Google sign-in with redirect");
-
-      // Set a timeout to hide the loading indicator after a few seconds
-      // since the page will redirect and this UI won't be visible anyway
-      setTimeout(() => {
-        setLoading(false);
-        setLoginSuccess(false);
-      }, 3000);
-
-      // Redirect sign-in (will navigate away from this page)
-      await signInWithGoogleRedirect();
-
-      // This code won't run immediately due to the redirect
-    } catch (error) {
-      console.error("Google redirect sign-in error:", error);
-      setError("Failed to start Google sign-in. Please try again.");
       setLoading(false);
       setLoginSuccess(false);
     }
@@ -235,7 +215,7 @@ const Login = () => {
                 </div>
                 <p>
                   {loading
-                    ? "Opening Google sign-in..."
+                    ? "Connecting to Google..."
                     : "Login successful! Redirecting..."}
                 </p>
               </div>
@@ -334,7 +314,6 @@ const Login = () => {
             </div>
 
             <div className="social-login">
-              {/* Popup method (faster) */}
               <button
                 type="button"
                 className="google-btn"
@@ -364,40 +343,7 @@ const Login = () => {
                     d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
                   />
                 </svg>
-                <span>Google Sign-in</span>
-              </button>
-
-              {/* Alternative method (redirect) */}
-              <button
-                type="button"
-                className="google-redirect-btn"
-                disabled={loading}
-                onClick={handleGoogleRedirectSignIn}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 48 48"
-                  width="22"
-                  height="22"
-                >
-                  <path
-                    fill="#FFC107"
-                    d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
-                  />
-                  <path
-                    fill="#FF3D00"
-                    d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
-                  />
-                  <path
-                    fill="#4CAF50"
-                    d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
-                  />
-                  <path
-                    fill="#1976D2"
-                    d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
-                  />
-                </svg>
-                <span>Alternative Sign-in</span>
+                <span>Google</span>
               </button>
               <button type="button" className="facebook-btn" disabled={loading}>
                 <svg

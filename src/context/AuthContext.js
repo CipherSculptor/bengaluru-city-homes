@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Google sign-in function - direct popup method (fastest)
+  // Google sign-in function with popup and redirect fallback
   const signInWithGoogle = async () => {
     try {
       console.log("Starting Google sign-in with popup");
@@ -47,57 +47,53 @@ export const AuthProvider = ({ children }) => {
         prompt: "select_account",
       });
 
-      // Direct popup method - fastest approach
-      const result = await signInWithPopup(auth, provider);
+      try {
+        // Try popup first (faster)
+        console.log("Attempting popup sign-in...");
+        const result = await signInWithPopup(auth, provider);
 
-      // If we get here, sign-in was successful
-      console.log("Google sign-in successful");
-      return {
-        success: true,
-        user: result.user,
-        credential: GoogleAuthProvider.credentialFromResult(result),
-      };
+        // If we get here, sign-in was successful
+        console.log("Google popup sign-in successful");
+        return {
+          success: true,
+          user: result.user,
+          credential: GoogleAuthProvider.credentialFromResult(result),
+        };
+      } catch (popupError) {
+        // If popup fails (common on mobile), fall back to redirect
+        console.log("Popup failed, falling back to redirect:", popupError);
+
+        if (
+          popupError.code === "auth/popup-blocked" ||
+          popupError.code === "auth/popup-closed-by-user" ||
+          popupError.code === "auth/cancelled-popup-request"
+        ) {
+          console.log("Using redirect fallback...");
+          await signInWithRedirect(auth, provider);
+          return { success: true, redirect: true };
+        } else {
+          // Re-throw if it's not a popup-related error
+          throw popupError;
+        }
+      }
     } catch (error) {
       console.error("Google sign-in error:", error);
 
       // Handle specific error codes
       let errorMessage = "Failed to sign in with Google";
-      if (error.code === "auth/popup-blocked") {
-        errorMessage = "Popup was blocked. Please enable popups for this site.";
-      } else if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-in was cancelled. Please try again.";
-      } else if (error.code === "auth/cancelled-popup-request") {
-        errorMessage = "Another sign-in attempt is in progress.";
+      if (error.code) {
+        console.log("Error code:", error.code);
+        if (error.code === "auth/popup-blocked") {
+          errorMessage =
+            "Popup was blocked. Please enable popups for this site.";
+        } else if (error.code === "auth/popup-closed-by-user") {
+          errorMessage = "Sign-in was cancelled. Please try again.";
+        } else if (error.code === "auth/cancelled-popup-request") {
+          errorMessage = "Another sign-in attempt is in progress.";
+        }
       }
 
       return { success: false, error: errorMessage };
-    }
-  };
-
-  // Alternative method using redirect (as fallback)
-  const signInWithGoogleRedirect = async () => {
-    try {
-      console.log("Starting Google sign-in with redirect");
-
-      // Create provider
-      const provider = new GoogleAuthProvider();
-
-      // Minimal configuration
-      provider.setCustomParameters({
-        prompt: "select_account",
-      });
-
-      // Redirect method
-      await signInWithRedirect(auth, provider);
-
-      // This line won't be reached immediately due to the redirect
-      return { success: true, redirect: true };
-    } catch (error) {
-      console.error("Google redirect sign-in error:", error);
-      return {
-        success: false,
-        error: "Failed to sign in with Google redirect",
-      };
     }
   };
 
@@ -225,7 +221,6 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     signInWithGoogle,
-    signInWithGoogleRedirect,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
