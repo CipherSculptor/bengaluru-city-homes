@@ -92,15 +92,29 @@ export const AuthProvider = ({ children }) => {
         await signInWithRedirect(auth, provider);
         return { success: true, redirect: true, method: "redirect" };
       } else if (method === "direct-link") {
-        // Direct link method - just return the auth object for direct handling
-        console.log("Preparing direct link authentication...");
-        return {
-          success: true,
-          directLink: true,
-          method: "direct-link",
-          provider: provider,
-          auth: auth,
-        };
+        // For direct link, we'll use a more reliable approach
+        console.log("Using direct link authentication...");
+        try {
+          // Try popup first
+          const result = await signInWithPopup(auth, provider);
+          console.log("Direct link popup successful", result);
+          return {
+            success: true,
+            user: result.user,
+            method: "direct-link-popup",
+            completed: true,
+          };
+        } catch (directError) {
+          console.error("Direct link popup failed:", directError);
+          // Fall back to redirect
+          console.log("Falling back to redirect for direct link...");
+          await signInWithRedirect(auth, provider);
+          return {
+            success: true,
+            redirect: true,
+            method: "direct-link-redirect",
+          };
+        }
       }
     } catch (error) {
       console.error("Google sign-in error:", error);

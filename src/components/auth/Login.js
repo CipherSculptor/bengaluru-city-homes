@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { signInWithPopup } from "firebase/auth";
 import "./Login.css";
 import Logo from "../../assets/Logo.png";
 
@@ -107,54 +106,43 @@ const Login = () => {
   const handleDirectLinkSignIn = async () => {
     setError("");
     setLoading(true);
-    setLoginSuccess(true);
 
     try {
       console.log("Using direct link for Google sign-in");
 
-      // Get the auth objects for direct handling
+      // Call the direct link method in AuthContext
       const result = await signInWithGoogle("direct-link");
 
-      if (result.success && result.directLink) {
-        // Open the popup manually
-        const provider = result.provider;
-        const auth = result.auth;
-
-        try {
-          // Attempt the popup sign-in directly
-          await signInWithPopup(auth, provider);
-
-          // If successful, update UI and redirect
+      if (result.success) {
+        if (result.completed) {
+          // If authentication completed successfully
           console.log("Direct link sign-in successful");
           setLoginSuccess(true);
 
-          // Set the current user (in case the context doesn't catch it)
+          // Redirect to home page
           setTimeout(() => {
             const from = location.state?.from?.pathname || "/";
             navigate(from, { replace: true });
           }, 1000);
-        } catch (popupError) {
-          console.error("Direct link popup error:", popupError);
+        } else if (result.redirect) {
+          // If redirect was initiated, show a message
+          console.log("Redirect initiated, page will reload");
+          setLoginSuccess(true);
 
-          // If popup fails, try redirect as last resort
-          if (
-            popupError.code === "auth/popup-blocked" ||
-            popupError.code === "auth/popup-closed-by-user"
-          ) {
+          // Show a message after a delay if the page hasn't reloaded
+          setTimeout(() => {
             setError(
-              "Popup was blocked. Trying redirect method as last resort..."
+              "If you're not redirected automatically, please check your popup blocker settings."
             );
-
-            // Use redirect as final fallback
-            await signInWithGoogle("redirect");
-
-            // UI will be reloaded by redirect
-          } else {
-            throw popupError;
-          }
+            setLoading(false);
+          }, 8000);
+        } else {
+          // Unexpected result
+          throw new Error("Unexpected authentication result");
         }
       } else {
-        throw new Error("Failed to prepare direct link authentication");
+        // Authentication failed
+        throw new Error(result.error || "Authentication failed");
       }
     } catch (error) {
       console.error("Direct link sign-in error:", error);
@@ -291,7 +279,39 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="login-form">
-              {error && <div className="error-message">{error}</div>}
+              {error && (
+                <div
+                  className="error-message"
+                  style={{
+                    backgroundColor: "#ffebee",
+                    color: "#d32f2f",
+                    padding: "10px",
+                    borderRadius: "4px",
+                    marginBottom: "15px",
+                    border: "1px solid #ffcdd2",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginRight: "8px" }}
+                    >
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    {error}
+                  </div>
+                </div>
+              )}
               <div className="form-group">
                 <input
                   type="email"
@@ -441,10 +461,11 @@ const Login = () => {
                       d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
                     />
                   </svg>
-                  <span>Try Direct Link</span>
+                  <span>Sign in with Google</span>
                 </button>
                 <p className="direct-link-info">
-                  If the button above doesn't work, try this direct link
+                  Alternative sign-in method if the Google button above doesn't
+                  work
                 </p>
               </div>
               <button type="button" className="facebook-btn" disabled={loading}>

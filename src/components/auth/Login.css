@@ -628,26 +628,30 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid #d0d0d0;
+  padding: 12px 16px;
+  border: 1px solid #4285F4;
   border-radius: 8px;
-  background-color: #f8f8f8;
+  background-color: #4285F4;
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 14px;
-  color: #555;
+  color: white;
+  font-weight: 500;
   margin-bottom: 6px;
   width: 100%;
   max-width: 200px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .direct-link-btn:hover {
-  background-color: #f0f0f0;
+  background-color: #3367D6;
   transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .direct-link-btn:active {
   transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .direct-link-btn:disabled {
@@ -658,9 +662,12 @@
 
 .direct-link-info {
   font-size: 12px;
-  color: #777;
+  color: #555;
   text-align: center;
   margin: 0;
+  font-style: italic;
+  max-width: 220px;
+  line-height: 1.4;
 }
 
 .google-btn svg,
