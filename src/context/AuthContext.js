@@ -34,89 +34,219 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Google sign-in function with popup and redirect fallback
-  const signInWithGoogle = async () => {
+  // Google sign-in function with improved error handling and debugging
+  const signInWithGoogle = async (method = "auto") => {
     try {
-      console.log("Starting Google sign-in with popup");
+      // Set authentication tracking flags in localStorage
+      localStorage.setItem("googleAuthAttempt", "true");
+      localStorage.setItem("googleAuthStartTime", Date.now().toString());
+      localStorage.setItem("googleAuthMethod", method);
 
-      // Create provider
+      console.log(`Starting Google sign-in (method: ${method})`);
+
+      // Create provider with simplified configuration
       const provider = new GoogleAuthProvider();
 
-      // Minimal configuration for speed
-      provider.setCustomParameters({
-        prompt: "select_account",
-      });
+      // Simplified configuration for better compatibility
+      if (method === "auto" || method === "popup") {
+        try {
+          // Try popup first if auto or popup method is requested
+          console.log("Attempting popup sign-in...");
+          const result = await signInWithPopup(auth, provider);
 
-      try {
-        // Try popup first (faster)
-        console.log("Attempting popup sign-in...");
-        const result = await signInWithPopup(auth, provider);
+          // Clear auth tracking flags on success
+          localStorage.removeItem("googleAuthAttempt");
+          localStorage.removeItem("googleAuthStartTime");
+          localStorage.removeItem("googleAuthMethod");
 
-        // If we get here, sign-in was successful
-        console.log("Google popup sign-in successful");
+          // If we get here, sign-in was successful
+          console.log("Google popup sign-in successful");
+          return {
+            success: true,
+            user: result.user,
+            method: "popup",
+          };
+        } catch (popupError) {
+          // If popup fails and we're in auto mode, fall back to redirect
+          console.log("Popup failed:", popupError);
+
+          if (
+            method === "auto" &&
+            (popupError.code === "auth/popup-blocked" ||
+              popupError.code === "auth/popup-closed-by-user" ||
+              popupError.code === "auth/cancelled-popup-request" ||
+              popupError.code === "auth/network-request-failed")
+          ) {
+            console.log("Using redirect fallback...");
+            localStorage.setItem("googleAuthMethod", "redirect");
+            await signInWithRedirect(auth, provider);
+            return { success: true, redirect: true, method: "redirect" };
+          } else {
+            // Re-throw if it's not a popup-related error or we're not in auto mode
+            throw popupError;
+          }
+        }
+      } else if (method === "redirect") {
+        // Direct redirect method
+        console.log("Using redirect method directly...");
+        await signInWithRedirect(auth, provider);
+        return { success: true, redirect: true, method: "redirect" };
+      } else if (method === "direct-link") {
+        // Direct link method - just return the auth object for direct handling
+        console.log("Preparing direct link authentication...");
         return {
           success: true,
-          user: result.user,
-          credential: GoogleAuthProvider.credentialFromResult(result),
+          directLink: true,
+          method: "direct-link",
+          provider: provider,
+          auth: auth,
         };
-      } catch (popupError) {
-        // If popup fails (common on mobile), fall back to redirect
-        console.log("Popup failed, falling back to redirect:", popupError);
-
-        if (
-          popupError.code === "auth/popup-blocked" ||
-          popupError.code === "auth/popup-closed-by-user" ||
-          popupError.code === "auth/cancelled-popup-request"
-        ) {
-          console.log("Using redirect fallback...");
-          await signInWithRedirect(auth, provider);
-          return { success: true, redirect: true };
-        } else {
-          // Re-throw if it's not a popup-related error
-          throw popupError;
-        }
       }
     } catch (error) {
       console.error("Google sign-in error:", error);
 
-      // Handle specific error codes
+      // Clear auth tracking flags on error
+      localStorage.removeItem("googleAuthAttempt");
+      localStorage.removeItem("googleAuthStartTime");
+      localStorage.removeItem("googleAuthMethod");
+
+      // Handle specific error codes with improved messages
       let errorMessage = "Failed to sign in with Google";
       if (error.code) {
         console.log("Error code:", error.code);
         if (error.code === "auth/popup-blocked") {
-          errorMessage =
-            "Popup was blocked. Please enable popups for this site.";
+          errorMessage = "Popup was blocked. Please try the direct link below.";
         } else if (error.code === "auth/popup-closed-by-user") {
-          errorMessage = "Sign-in was cancelled. Please try again.";
+          errorMessage =
+            "Sign-in was cancelled. Please try again or use the direct link.";
         } else if (error.code === "auth/cancelled-popup-request") {
-          errorMessage = "Another sign-in attempt is in progress.";
+          errorMessage =
+            "Another sign-in attempt is in progress. Please wait or try the direct link.";
+        } else if (error.code === "auth/network-request-failed") {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
+        } else if (error.code === "auth/timeout") {
+          errorMessage =
+            "Authentication timed out. Please try again or use the direct link.";
         }
       }
 
-      return { success: false, error: errorMessage };
+      return { success: false, error: errorMessage, method: method };
     }
   };
 
-  // Handle redirect result
+  // Enhanced redirect result handler with better debugging and error handling
   useEffect(() => {
     const handleRedirectResult = async () => {
-      try {
-        // Check for redirect result when the page loads
-        const result = await getRedirectResult(auth);
+      // Check if we have a pending Google auth attempt
+      const hasAuthAttempt =
+        localStorage.getItem("googleAuthAttempt") === "true";
+      const authStartTime = localStorage.getItem("googleAuthStartTime");
+      const authMethod = localStorage.getItem("googleAuthMethod");
 
-        if (result && result.user) {
-          // User successfully signed in with redirect
-          console.log("Redirect sign-in successful");
-          setCurrentUser(result.user);
+      if (hasAuthAttempt) {
+        try {
+          console.log("Checking for redirect result...");
+
+          // Calculate elapsed time for debugging
+          if (authStartTime) {
+            const elapsedTime = Date.now() - parseInt(authStartTime);
+            console.log(
+              `Auth attempt has been pending for ${elapsedTime}ms (method: ${
+                authMethod || "unknown"
+              })`
+            );
+          }
+
+          const result = await getRedirectResult(auth);
+
+          if (result && result.user) {
+            // User successfully signed in with redirect
+            console.log("Redirect sign-in successful", result.user);
+            setCurrentUser(result.user);
+
+            // Clear auth tracking flags on success
+            localStorage.removeItem("googleAuthAttempt");
+            localStorage.removeItem("googleAuthStartTime");
+            localStorage.removeItem("googleAuthMethod");
+
+            // Store success flag for UI feedback
+            localStorage.setItem("googleAuthSuccess", "true");
+            localStorage.setItem(
+              "googleAuthSuccessTime",
+              Date.now().toString()
+            );
+
+            // You could add additional user data handling here
+            // For example, storing user preferences or redirecting to a specific page
+          } else {
+            console.log("No redirect result found");
+
+            // Check if the attempt has timed out (15 seconds)
+            if (authStartTime && Date.now() - parseInt(authStartTime) > 15000) {
+              console.warn("Auth attempt timed out after 15 seconds");
+              localStorage.removeItem("googleAuthAttempt");
+              localStorage.removeItem("googleAuthStartTime");
+              localStorage.removeItem("googleAuthMethod");
+            }
+          }
+        } catch (error) {
+          console.error("Error with redirect sign-in:", error);
+
+          // Clear auth tracking flags on error
+          localStorage.removeItem("googleAuthAttempt");
+          localStorage.removeItem("googleAuthStartTime");
+          localStorage.removeItem("googleAuthMethod");
         }
-      } catch (error) {
-        console.error("Error with redirect sign-in:", error);
+      } else {
+        // Check for success flag from previous redirect
+        const authSuccess =
+          localStorage.getItem("googleAuthSuccess") === "true";
+        const authSuccessTime = localStorage.getItem("googleAuthSuccessTime");
+
+        if (authSuccess && authSuccessTime) {
+          const elapsedTime = Date.now() - parseInt(authSuccessTime);
+
+          // Only process recent successes (within last 5 seconds)
+          if (elapsedTime < 5000) {
+            console.log("Processing recent auth success");
+
+            // Clear success flags
+            localStorage.removeItem("googleAuthSuccess");
+            localStorage.removeItem("googleAuthSuccessTime");
+
+            // Check if we need to redirect the user
+            if (!currentUser) {
+              // Try to get the result one more time
+              try {
+                const result = await getRedirectResult(auth);
+                if (result && result.user) {
+                  setCurrentUser(result.user);
+                }
+              } catch (e) {
+                console.error(
+                  "Error getting redirect result after success:",
+                  e
+                );
+              }
+            }
+          } else {
+            // Clear stale success flags
+            localStorage.removeItem("googleAuthSuccess");
+            localStorage.removeItem("googleAuthSuccessTime");
+          }
+        }
       }
     };
 
     // Run once when the component mounts
     handleRedirectResult();
-  }, []);
+
+    // Also set up an interval to check periodically (helpful for redirect flows)
+    const intervalId = setInterval(handleRedirectResult, 2000); // Check every 2 seconds
+
+    return () => clearInterval(intervalId);
+  }, [currentUser]);
 
   // Login function
   const login = async (email, password) => {
