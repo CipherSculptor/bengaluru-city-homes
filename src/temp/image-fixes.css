@@ -1,0 +1,4 @@
+/* Image quality fixes */
+.main-project-image { object-fit: contain; }
+.floor-plan { object-fit: contain; opacity: 0.9; }
+.project-pricing, .project-description { backdrop-filter: blur(5px); }

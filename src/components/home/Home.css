@@ -1,0 +1,23 @@
+.home {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+  margin-top: 0;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Remove this as we've handled it directly in HeroSection.css */
+.hero-section {
+  margin-top: 0;
+}
+
+/* Section IDs for smooth scrolling */
+#top {
+  scroll-margin-top: 80px;
+}
+
+#projects {
+  scroll-margin-top: 80px;
+}
