@@ -6,23 +6,13 @@ const fs = require("fs");
 const { sendBookingConfirmation } = require("./utils/emailService");
 
 const app = express();
-
-// Configure CORS to allow requests from all origins
-app.use(
-  cors({
-    origin: "*", // Allow all origins
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-    credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  })
-);
-
-// Handle preflight requests
-app.options("*", cors());
-
+app.use(cors());
 app.use(express.json());
+
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../build')));
+}
 
 // Ensure the bookings directory exists
 const bookingsDir = path.join(__dirname, "bookings");
@@ -303,38 +293,14 @@ app.get("/api/all-bookings", async (_, res) => {
   }
 });
 
-// Add a health check endpoint
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Server is running" });
-});
-
-// Add a simple endpoint to check if the server is available for booking
-app.get("/api/booking-status", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    message: "Booking server is available",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Serve static files from the React app in production
-if (process.env.NODE_ENV === "production") {
-  const buildPath = path.join(__dirname, "../build");
-  app.use(express.static(buildPath));
-
-  // Handle React routing, return all requests to React app
-  app.get("*", (req, res) => {
-    if (!req.path.startsWith("/api/")) {
-      res.sendFile(path.join(buildPath, "index.html"));
-    }
+// For any other GET request, serve the React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../build', 'index.html'));
   });
 }
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Health check available at: http://localhost:${PORT}/api/health`);
-  console.log(
-    `Booking status available at: http://localhost:${PORT}/api/booking-status`
-  );
 });

@@ -90,113 +90,20 @@ const SlotBooking = () => {
     checkServerAvailability();
   }, [location.state]);
 
-  // Function to detect if the user is on a mobile device
-  const isMobileDevice = () => {
-    // Check if we already have a stored result
-    const storedResult = localStorage.getItem("isMobileDevice");
-    if (storedResult !== null) {
-      console.log(
-        "Using stored mobile detection result:",
-        storedResult === "true"
-      );
-      return storedResult === "true";
-    }
-
-    // More comprehensive mobile detection
-    const userAgent = navigator.userAgent || window.opera;
-    const mobileRegex =
-      /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
-    const touchPoints = navigator.maxTouchPoints || 0;
-
-    // Check screen size as well
-    const isSmallScreen = window.innerWidth <= 768;
-
-    // Log all detection methods for debugging
-    console.log("User Agent:", userAgent);
-    console.log("Mobile Regex Match:", mobileRegex.test(userAgent));
-    console.log("Touch Points:", touchPoints);
-    console.log("Screen Width:", window.innerWidth);
-    console.log("Is Small Screen:", isSmallScreen);
-
-    // Consider a device mobile if it matches the regex OR has touch points OR has a small screen
-    const result =
-      mobileRegex.test(userAgent) || touchPoints > 0 || isSmallScreen;
-    console.log("Final Mobile Detection Result:", result);
-
-    // Store the result in localStorage for consistency across page refreshes
-    localStorage.setItem("isMobileDevice", result);
-
-    // CRITICAL FIX: For this specific application, we'll force mobile mode on
-    // to ensure the server always appears online
-    console.log(
-      "CRITICAL FIX: Forcing mobile mode to be true to fix server offline issue"
-    );
-    localStorage.setItem("isMobileDevice", "true");
-
-    return true; // Always return true to fix the server offline issue
-  };
-
   // Function to check if the booking server is available
   const checkServerAvailability = async () => {
-    // Check if we're on a mobile device
-    const isMobile = isMobileDevice();
-
-    // IMPORTANT: For mobile devices, we'll ALWAYS assume the server is available
-    // This is a critical fix for the mobile server offline issue
-    if (isMobile) {
-      console.log("Mobile device detected - forcing server to be available");
-      setIsServerAvailable(true);
-      return; // Skip the actual server check on mobile
-    }
-
-    // Only perform actual server check on desktop devices
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
-      // Try multiple endpoints to check server availability
-      const possibleUrls = [
-        "http://localhost:5001/api/book-slot",
-        "http://127.0.0.1:5001/api/book-slot",
-        "/api/book-slot",
-        window.location.origin + "/api/book-slot",
-      ];
-
-      let serverAvailable = false;
-      let lastError = null;
-
-      // Try each URL until one works
-      for (const url of possibleUrls) {
-        try {
-          console.log(`Checking server availability at: ${url}`);
-          const response = await fetch(url, {
-            method: "HEAD",
-            headers: {
-              "Cache-Control": "no-cache",
-            },
-            signal: controller.signal,
-          });
-
-          if (response.ok || response.status === 404) {
-            // Even a 404 means the server is running
-            serverAvailable = true;
-            break;
-          }
-        } catch (err) {
-          console.log(`Error checking ${url}:`, err);
-          lastError = err;
-          // Continue to next URL
-        }
-      }
+      await fetch("http://localhost:5001/api/book-slot", {
+        method: "HEAD",
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
-
-      if (serverAvailable) {
-        setIsServerAvailable(true);
-        console.log("Booking server is available");
-      } else {
-        throw lastError || new Error("All server endpoints failed");
-      }
+      setIsServerAvailable(true);
+      console.log("Booking server is available");
     } catch (error) {
       console.log("Booking server is not available:", error);
       setIsServerAvailable(false);
@@ -273,21 +180,6 @@ const SlotBooking = () => {
       return;
     }
 
-    // Check if we're on a mobile device using our enhanced detection
-    const isMobile = isMobileDevice();
-    console.log(
-      "Submitting booking from:",
-      isMobile ? "Mobile Device" : "Desktop"
-    );
-
-    // For mobile devices, force the server to be available
-    if (isMobile && !isServerAvailable) {
-      console.log(
-        "Mobile device detected during submission - forcing server to be available"
-      );
-      setIsServerAvailable(true);
-    }
-
     try {
       // Create the booking data object
       const bookingData = {
@@ -304,16 +196,11 @@ const SlotBooking = () => {
         "http://localhost:5001/api/book-slot",
         "http://127.0.0.1:5001/api/book-slot",
         "/api/book-slot",
-        window.location.origin + "/api/book-slot",
       ];
 
       let success = false;
       let lastError = null;
       let serverAvailable = false;
-
-      // Check if we're on a mobile device
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      console.log("Device type:", isMobile ? "Mobile" : "Desktop");
 
       // Try to connect to the server
       for (const apiUrl of possibleUrls) {
@@ -432,58 +319,10 @@ const SlotBooking = () => {
       });
       setCurrentStep(1);
     } catch (error) {
-      console.error("Error during booking submission:", error);
+      console.error("Error:", error);
 
-      // Check if we're on a mobile device using our enhanced detection
-      const isMobile = isMobileDevice();
-
-      // CRITICAL FIX: For mobile devices, we'll ALWAYS assume success even if the server is offline
-      if (isMobile) {
-        console.log(
-          "MOBILE DEVICE DETECTED - PROCEEDING WITH BOOKING DESPITE SERVER ERROR"
-        );
-        // Force server to be available on mobile
-        setIsServerAvailable(true);
-
-        // Create the booking data object for fallback
-        const bookingData = {
-          property: formData.apartment,
-          date: formData.visitDate,
-          time: formData.timeSlot,
-          name: formData.name,
-          email: formData.email,
-          contactNumber: formData.contactNumber,
-        };
-
-        // Add the booking to context anyway (fallback mechanism)
-        addBooking(bookingData);
-
-        // Show success message without confirmation on mobile
-        setShowSuccess(true);
-        setBookingComplete(true);
-
-        // Scroll to success message
-        if (successRef.current) {
-          successRef.current.scrollIntoView({ behavior: "smooth" });
-        }
-
-        // Reset form for new bookings
-        setFormData({
-          name: "",
-          email: "",
-          contactNumber: "",
-          apartment: location.state?.apartment || "",
-          visitDate: "",
-          timeSlot: "",
-        });
-        setCurrentStep(1);
-
-        // Return early - we've handled the mobile case
-        return;
-      } else {
-        // Set server availability to false on desktop
-        setIsServerAvailable(false);
-      }
+      // Set server availability to false
+      setIsServerAvailable(false);
 
       // Create the booking data object for fallback
       const bookingData = {
@@ -499,19 +338,13 @@ const SlotBooking = () => {
       addBooking(bookingData);
 
       // Show a more user-friendly error message
-      // On mobile, just proceed without confirmation
-      let shouldProceed = isMobile;
+      const confirmSave = window.confirm(
+        "There was an issue connecting to our booking server, but we've saved your booking locally. " +
+          "Your booking will be synchronized when the server is available. " +
+          "Click OK to view your booking details."
+      );
 
-      if (!isMobile) {
-        // On desktop, show confirmation dialog
-        shouldProceed = window.confirm(
-          "There was an issue connecting to our booking server, but we've saved your booking locally. " +
-            "Your booking will be synchronized when the server is available. " +
-            "Click OK to view your booking details."
-        );
-      }
-
-      if (shouldProceed || isMobile) {
+      if (confirmSave) {
         // Show success message
         setShowSuccess(true);
         setBookingComplete(true);
@@ -536,79 +369,32 @@ const SlotBooking = () => {
   };
 
   // Server status indicator component
-  const ServerStatusIndicator = () => {
-    // Check if we're on a mobile device using our enhanced detection
-    const isMobile = isMobileDevice();
-
-    // For mobile devices, we'll ALWAYS show as online
-    // This is critical for fixing the mobile server offline issue
-    const showAsOnline = isMobile || isServerAvailable;
-
-    // Force server to be available on mobile
-    if (isMobile && !isServerAvailable) {
-      console.log(
-        "Mobile device detected in status indicator - forcing server to be available"
-      );
-      // We don't call setIsServerAvailable here to avoid re-renders,
-      // but we ensure showAsOnline is true
-    }
-
-    return (
-      <div
-        className="server-status-indicator"
+  const ServerStatusIndicator = () => (
+    <div
+      className="server-status-indicator"
+      style={{
+        marginBottom: "15px",
+        fontSize: "0.8rem",
+        color: isServerAvailable ? "#4CAF50" : "#f44336",
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
+      <span
         style={{
-          marginBottom: "15px",
-          fontSize: "0.8rem",
-          color: showAsOnline ? "#4CAF50" : "#f44336",
-          display: "flex",
-          alignItems: "center",
-          flexDirection: "column",
-          padding: "10px",
-          backgroundColor: "#f8f9fa",
-          borderRadius: "5px",
-          border: `1px solid ${showAsOnline ? "#c3e6cb" : "#f5c6cb"}`,
+          display: "inline-block",
+          width: "10px",
+          height: "10px",
+          borderRadius: "50%",
+          backgroundColor: isServerAvailable ? "#4CAF50" : "#f44336",
+          marginRight: "5px",
         }}
-      >
-        <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-          <span
-            style={{
-              display: "inline-block",
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              backgroundColor: showAsOnline ? "#4CAF50" : "#f44336",
-              marginRight: "5px",
-            }}
-          ></span>
-          <span style={{ flex: 1 }}>
-            {showAsOnline
-              ? isMobile
-                ? "✅ BOOKING SERVER ONLINE - Your booking will be processed successfully"
-                : "✅ Booking server is online - Your booking will be saved to our database"
-              : "❌ Booking server is offline - Bookings will be saved locally only"}
-          </span>
-        </div>
-
-        {!showAsOnline && (
-          <button
-            onClick={checkServerAvailability}
-            style={{
-              marginTop: "8px",
-              padding: "5px 10px",
-              fontSize: "0.8rem",
-              backgroundColor: "#6c757d",
-              color: "white",
-              border: "none",
-              borderRadius: "3px",
-              cursor: "pointer",
-            }}
-          >
-            Retry Connection
-          </button>
-        )}
-      </div>
-    );
-  };
+      ></span>
+      {isServerAvailable
+        ? "Booking server is online"
+        : "Booking server is offline - bookings will be saved locally"}
+    </div>
+  );
 
   // Floating elements for visual interest
   const renderFloatingElements = () => {

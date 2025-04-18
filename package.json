@@ -22,7 +22,6 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.4.1",
     "react-scripts": "^5.0.1",
-    "serverless-http": "^3.2.0",
     "sib-api-v3-sdk": "^8.5.0",
     "web-vitals": "^2.1.4"
   },
@@ -31,8 +30,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "server": "node src/server.js",
-    "vercel-build": "bash ./build.sh"
+    "server": "node src/server.js"
   },
   "eslintConfig": {
     "extends": [

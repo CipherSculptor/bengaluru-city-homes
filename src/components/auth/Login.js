@@ -63,10 +63,6 @@ const Login = () => {
       // Show a message to the user that we're preparing the Google sign-in
       setLoginSuccess(true); // Reuse the success message UI for loading
 
-      // Set a flag in localStorage to track auth in progress
-      localStorage.setItem("authInProgress", "true");
-      console.log("Setting auth in progress flag");
-
       // Set a timeout to handle potential delays
       const signInTimeout = setTimeout(() => {
         setError(
@@ -74,18 +70,10 @@ const Login = () => {
         );
         setLoading(false);
         setLoginSuccess(false);
-        localStorage.removeItem("authInProgress"); // Clear the flag on timeout
-      }, 15000); // 15 seconds timeout
-
-      // Log the current URL for debugging
-      console.log("Current URL:", window.location.href);
-
-      // Log the attempt
-      console.log("Attempting Google sign-in...");
+      }, 10000); // 10 seconds timeout
 
       // This will redirect to Google sign-in page
-      const result = await signInWithGoogle();
-      console.log("Sign-in function returned:", result);
+      await signInWithGoogle();
 
       // Clear the timeout if the redirect happens successfully
       clearTimeout(signInTimeout);
@@ -93,10 +81,9 @@ const Login = () => {
       // The page will reload after redirect, so we don't need to handle success here
     } catch (error) {
       console.error("Google sign-in error:", error);
-      setError("An unexpected error occurred: " + error.message);
+      setError("An unexpected error occurred. Please try again.");
       setLoading(false);
       setLoginSuccess(false);
-      localStorage.removeItem("authInProgress"); // Clear the flag on error
     }
   };
 
@@ -345,18 +332,6 @@ const Login = () => {
                 </svg>
                 <span>Google</span>
               </button>
-
-              {/* Fallback direct link to Firebase auth */}
-              <div className="fallback-message">
-                <p>If the Google sign-in button doesn't work, try this:</p>
-                <a
-                  href="https://bengalurucityhomes.firebaseapp.com/__/auth/handler?apiKey=AIzaSyCC8zSd4DKiuIyHndqEbGvfxowOPUWlX8g&authType=signInViaRedirect&providerId=google.com"
-                  className="fallback-link"
-                  target="_self"
-                >
-                  Direct Google Sign-in Link
-                </a>
-              </div>
               <button type="button" className="facebook-btn" disabled={loading}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
