@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/server.js",
+      "src": "api/*.js",
       "use": "@vercel/node"
     },
     {
@@ -16,12 +16,20 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "backend/server.js"
+      "src": "/api/health",
+      "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/booking-status",
+      "dest": "/api/booking-status.js"
+    },
+    {
+      "src": "/api/book-slot",
+      "dest": "/api/book-slot.js"
     },
     {
       "src": "/(.*)",
-      "dest": "build/$1"
+      "dest": "/build/$1"
     }
   ],
   "env": {
