@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { signInWithPopup } from "firebase/auth";
 import "./Login.css";
 import Logo from "../../assets/Logo.png";
 
