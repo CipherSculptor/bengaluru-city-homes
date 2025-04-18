@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
 } from "firebase/auth";
@@ -36,6 +37,10 @@ export const AuthProvider = ({ children }) => {
   // Google sign-in function
   const signInWithGoogle = async () => {
     try {
+      // Store a flag in localStorage to track Google sign-in attempts
+      localStorage.setItem("googleSignInAttempt", "true");
+      localStorage.setItem("googleSignInStartTime", Date.now().toString());
+
       const provider = new GoogleAuthProvider();
 
       // Add scopes for better user experience
@@ -45,16 +50,40 @@ export const AuthProvider = ({ children }) => {
       // Set custom parameters
       provider.setCustomParameters({
         prompt: "select_account",
-        login_hint: "user@example.com",
-        access_type: "online", // Use 'offline' if you need a refresh token
       });
 
-      // Use redirect instead of popup for better compatibility
-      await signInWithRedirect(auth, provider);
-      return { success: true };
+      // Try popup first (faster) with fallback to redirect
+      try {
+        console.log("Attempting Google sign-in with popup...");
+        const result = await signInWithPopup(auth, provider);
+        // Clear the localStorage flags on success
+        localStorage.removeItem("googleSignInAttempt");
+        localStorage.removeItem("googleSignInStartTime");
+        return { success: true, user: result.user };
+      } catch (popupError) {
+        console.warn(
+          "Popup sign-in failed, falling back to redirect:",
+          popupError
+        );
+        // If popup fails (common on mobile), fall back to redirect
+        await signInWithRedirect(auth, provider);
+        return { success: true, redirect: true };
+      }
     } catch (error) {
       console.error("Google sign-in error:", error);
+      // Clear the localStorage flags on error
+      localStorage.removeItem("googleSignInAttempt");
+      localStorage.removeItem("googleSignInStartTime");
+
       let errorMessage = "Failed to sign in with Google";
+      if (error.code === "auth/popup-blocked") {
+        errorMessage = "Popup was blocked. Please allow popups or try again.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Sign-in was cancelled. Please try again.";
+      } else if (error.code === "auth/cancelled-popup-request") {
+        errorMessage = "Multiple popup requests were made. Please try again.";
+      }
+
       return { success: false, error: errorMessage };
     }
   };
@@ -62,31 +91,59 @@ export const AuthProvider = ({ children }) => {
   // Handle redirect result
   useEffect(() => {
     const handleRedirectResult = async () => {
-      try {
-        console.log("Checking for redirect result...");
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          // User successfully signed in with redirect
-          console.log("Redirect sign-in successful");
-          setCurrentUser(result.user);
+      // Check if we have a pending Google sign-in
+      const hasGoogleSignInAttempt =
+        localStorage.getItem("googleSignInAttempt") === "true";
+      const startTime = localStorage.getItem("googleSignInStartTime");
 
-          // You could add additional user data handling here
-          // For example, storing user preferences or redirecting to a specific page
-        } else {
-          console.log("No redirect result found");
+      // Only proceed if we have a pending sign-in attempt
+      if (hasGoogleSignInAttempt) {
+        try {
+          console.log("Checking for redirect result...");
+
+          // Calculate how long the sign-in has been pending
+          if (startTime) {
+            const elapsedTime = Date.now() - parseInt(startTime);
+            console.log(`Google sign-in has been pending for ${elapsedTime}ms`);
+          }
+
+          const result = await getRedirectResult(auth);
+          if (result && result.user) {
+            // User successfully signed in with redirect
+            console.log("Redirect sign-in successful");
+            setCurrentUser(result.user);
+
+            // Clear the localStorage flags on success
+            localStorage.removeItem("googleSignInAttempt");
+            localStorage.removeItem("googleSignInStartTime");
+
+            // You could add additional user data handling here
+            // For example, storing user preferences or redirecting to a specific page
+          } else {
+            console.log("No redirect result found");
+
+            // If it's been more than 2 minutes, assume the sign-in failed
+            if (startTime && Date.now() - parseInt(startTime) > 120000) {
+              console.warn("Google sign-in timed out after 2 minutes");
+              localStorage.removeItem("googleSignInAttempt");
+              localStorage.removeItem("googleSignInStartTime");
+            }
+          }
+        } catch (error) {
+          console.error("Error with redirect sign-in:", error);
+          // Clear the localStorage flags on error
+          localStorage.removeItem("googleSignInAttempt");
+          localStorage.removeItem("googleSignInStartTime");
         }
-      } catch (error) {
-        console.error("Error with redirect sign-in:", error);
-        // You could add more specific error handling here based on error codes
       }
     };
 
-    // Set a timeout to handle potential delays
-    const timeoutId = setTimeout(() => {
-      handleRedirectResult();
-    }, 500); // Small delay to ensure Firebase is fully initialized
+    // Run immediately and then set up an interval to check periodically
+    handleRedirectResult();
 
-    return () => clearTimeout(timeoutId);
+    const intervalId = setInterval(handleRedirectResult, 2000); // Check every 2 seconds
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Login function
