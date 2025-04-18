@@ -60,6 +60,8 @@ const SlotBooking = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [animateIn, setAnimateIn] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailPreviewUrl, setEmailPreviewUrl] = useState(null);
 
   // Check if a specific project/apartment was passed in the location state
   useEffect(() => {
@@ -86,6 +88,55 @@ const SlotBooking = () => {
     // Check if the server is running
     checkServerAvailability();
   }, [location.state]);
+
+  // Function to generate Excel file from booking data
+  const generateExcelFile = (bookingData) => {
+    try {
+      // Create a simple CSV string (easier than full Excel)
+      const headers = [
+        "Property",
+        "Date",
+        "Time",
+        "Name",
+        "Email",
+        "Contact Number",
+      ];
+      const values = [
+        bookingData.property,
+        bookingData.date,
+        bookingData.time,
+        bookingData.name,
+        bookingData.email,
+        bookingData.contactNumber,
+      ];
+
+      // Create CSV content
+      let csvContent = headers.join(",") + "\n";
+      csvContent += values.join(",") + "\n";
+
+      // Create a blob and download link
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+
+      // Create download link and trigger click
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `booking_${bookingData.name}_${bookingData.date}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      return true;
+    } catch (error) {
+      console.error("Error generating Excel file:", error);
+      return false;
+    }
+  };
 
   // Function to check if the booking server is available
   const checkServerAvailability = async () => {
@@ -246,55 +297,6 @@ const SlotBooking = () => {
         lastError = err;
         serverAvailable = false;
       }
-
-      // Generate Excel file for download
-      const generateExcelFile = (bookingData) => {
-        try {
-          // Create a simple CSV string (easier than full Excel)
-          const headers = [
-            "Property",
-            "Date",
-            "Time",
-            "Name",
-            "Email",
-            "Contact Number",
-          ];
-          const values = [
-            bookingData.property,
-            bookingData.date,
-            bookingData.time,
-            bookingData.name,
-            bookingData.email,
-            bookingData.contactNumber,
-          ];
-
-          // Create CSV content
-          let csvContent = headers.join(",") + "\n";
-          csvContent += values.join(",") + "\n";
-
-          // Create a blob and download link
-          const blob = new Blob([csvContent], {
-            type: "text/csv;charset=utf-8;",
-          });
-          const url = URL.createObjectURL(blob);
-
-          // Create download link and trigger click
-          const link = document.createElement("a");
-          link.setAttribute("href", url);
-          link.setAttribute(
-            "download",
-            `booking_${bookingData.name}_${bookingData.date}.csv`
-          );
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-
-          return true;
-        } catch (error) {
-          console.error("Error generating Excel file:", error);
-          return false;
-        }
-      };
 
       // Generate Excel file for download
       generateExcelFile(bookingData);
@@ -708,12 +710,39 @@ const SlotBooking = () => {
             </p>
 
             <p className="email-notification">
-              <span className="notification-icon">💾</span>
-              <span>
-                Your booking has been saved to our server and downloaded as an
-                Excel file. You can also view your booking details in your
-                profile.
-              </span>
+              {emailSent ? (
+                <>
+                  <span className="notification-icon">✉</span>
+                  <span>
+                    A confirmation has been sent to your email.
+                    {emailPreviewUrl && (
+                      <span>
+                        {" "}
+                        <a
+                          href={emailPreviewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "#cfe56f",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          View email
+                        </a>
+                      </span>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="notification-icon">💾</span>
+                  <span>
+                    Your booking has been saved to our server and downloaded as
+                    an Excel file. You can also view your booking details in
+                    your profile.
+                  </span>
+                </>
+              )}
             </p>
 
             <div className="success-actions">
