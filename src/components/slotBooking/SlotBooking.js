@@ -114,10 +114,14 @@ const SlotBooking = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
+      // Get the API URL from environment variables or use default
+      const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
+
       // Try multiple endpoints to check server availability
       const endpoints = [
-        "/api/health",
-        "/api/booking-status",
+        `${apiBaseUrl}/health`,
+        `${apiBaseUrl}/booking-status`,
+        `${apiBaseUrl}/book-slot`,
         "http://localhost:5001/api/health",
         "http://localhost:5001/api/booking-status",
         "http://localhost:5001/api/book-slot",
@@ -269,7 +273,12 @@ const SlotBooking = () => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for production
 
-          const response = await fetch("/api/book-slot", {
+          // Get the API URL from environment variables or use default
+          const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
+          const apiUrl = `${apiBaseUrl}/book-slot`;
+          console.log("Using API URL:", apiUrl);
+
+          const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -318,7 +327,10 @@ const SlotBooking = () => {
         }
       } else {
         // In development, try multiple endpoints
+        // Get the API URL from environment variables or use default
+        const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
         const possibleUrls = [
+          `${apiBaseUrl}/book-slot`,
           "/api/book-slot",
           "http://localhost:5001/api/book-slot",
           "http://127.0.0.1:5001/api/book-slot",
@@ -502,6 +514,7 @@ const SlotBooking = () => {
         navigator.userAgent
       );
     const isProduction = window.location.hostname !== "localhost";
+    const apiBaseUrl = process.env.REACT_APP_API_URL || "/api";
 
     // Force online status in production or on mobile
     const showAsOnline = isProduction || isMobile || isServerAvailable;
@@ -540,7 +553,7 @@ const SlotBooking = () => {
         ></span>
         <span style={{ fontWeight: "500" }}>
           {showAsOnline
-            ? "Booking server is online - your bookings will be saved securely"
+            ? `Booking server is online - your bookings will be saved to Excel (API: ${apiBaseUrl})`
             : "Booking server is offline - bookings will be saved locally"}
         </span>
       </div>

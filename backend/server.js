@@ -20,6 +20,16 @@ if (!fs.existsSync(bookingsDir)) {
   fs.mkdirSync(bookingsDir);
 }
 
+// Add health check endpoint
+app.get("/api/health", (_, res) => {
+  res.json({ status: "ok", message: "Server is running" });
+});
+
+// Add booking status endpoint
+app.get("/api/booking-status", (_, res) => {
+  res.json({ status: "ok", message: "Booking server is available" });
+});
+
 // Path for the all-bookings Excel file
 const allBookingsFilePath = path.join(bookingsDir, "all-bookings.xlsx");
 
@@ -295,7 +305,7 @@ app.get("/api/all-bookings", async (_, res) => {
 
 // For any other GET request, serve the React app in production
 if (process.env.NODE_ENV === "production") {
-  app.get("*", (req, res) => {
+  app.get("*", (_, res) => {
     res.sendFile(path.join(__dirname, "../build", "index.html"));
   });
 }
