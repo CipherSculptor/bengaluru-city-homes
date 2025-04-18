@@ -25,6 +25,11 @@ app.get("/api/health", (_, res) => {
   res.json({ status: "ok", message: "Server is running" });
 });
 
+// Root health check for Vercel
+app.get("/", (_, res) => {
+  res.json({ status: "ok", message: "Booking API server is running" });
+});
+
 // Add booking status endpoint
 app.get("/api/booking-status", (_, res) => {
   res.json({ status: "ok", message: "Booking server is available" });
