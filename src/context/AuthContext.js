@@ -7,8 +7,6 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
 } from "firebase/auth";
 import { auth } from "../firebase/config";
 
@@ -34,66 +32,47 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Google sign-in function
+  // Google sign-in function - direct popup method (fastest)
   const signInWithGoogle = async () => {
     try {
-      console.log("Starting Google sign-in process");
+      console.log("Starting Google sign-in with popup");
 
-      // Create a new provider instance each time
+      // Create provider
       const provider = new GoogleAuthProvider();
 
-      // Basic configuration - keep it simple
+      // Minimal configuration for speed
       provider.setCustomParameters({
         prompt: "select_account",
       });
 
-      // Use the simple redirect method which is more reliable
-      await signInWithRedirect(auth, provider);
+      // Direct popup method - fastest approach
+      const result = await signInWithPopup(auth, provider);
 
-      // This line won't be reached immediately due to the redirect
-      return { success: true, redirect: true };
+      // If we get here, sign-in was successful
+      console.log("Google sign-in successful");
+      return {
+        success: true,
+        user: result.user,
+        credential: GoogleAuthProvider.credentialFromResult(result),
+      };
     } catch (error) {
       console.error("Google sign-in error:", error);
 
+      // Handle specific error codes
       let errorMessage = "Failed to sign in with Google";
-      if (error.code) {
-        console.log("Error code:", error.code);
-        if (error.code.includes("popup")) {
-          errorMessage = "Popup was blocked or closed. Please try again.";
-        }
+      if (error.code === "auth/popup-blocked") {
+        errorMessage = "Popup was blocked. Please enable popups for this site.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Sign-in was cancelled. Please try again.";
+      } else if (error.code === "auth/cancelled-popup-request") {
+        errorMessage = "Another sign-in attempt is in progress.";
       }
 
       return { success: false, error: errorMessage };
     }
   };
 
-  // Handle redirect result
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        console.log("Checking for redirect result...");
-        const result = await getRedirectResult(auth);
-
-        if (result && result.user) {
-          // User successfully signed in with redirect
-          console.log("Redirect sign-in successful", result.user);
-          setCurrentUser(result.user);
-
-          // You could add additional user data handling here
-          // For example, storing user preferences or redirecting to a specific page
-        } else {
-          console.log("No redirect result found or user already processed");
-        }
-      } catch (error) {
-        console.error("Error with redirect sign-in:", error);
-      }
-    };
-
-    // Run once when the component mounts
-    handleRedirectResult();
-
-    // No need for interval - Firebase will handle the redirect result when the page loads
-  }, []);
+  // No redirect handler needed with direct popup method
 
   // Login function
   const login = async (email, password) => {

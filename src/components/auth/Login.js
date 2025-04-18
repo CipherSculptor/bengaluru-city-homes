@@ -61,24 +61,27 @@ const Login = () => {
     setLoginSuccess(true); // Show loading indicator immediately
 
     try {
-      // Simple message to show the user
-      console.log("Initiating Google sign-in");
+      console.log("Initiating Google sign-in with popup");
 
-      // Set a timeout to hide the loading indicator if redirect takes too long
-      // This improves UX by not showing an indefinite loading state
-      const signInTimeout = setTimeout(() => {
-        console.log("Redirect in progress...");
-        // Don't show error, just hide the loading indicator after 5 seconds
-        // since the redirect is likely in progress
+      // Direct sign-in with Google (popup method)
+      const result = await signInWithGoogle();
+
+      if (result.success) {
+        // Sign-in successful
+        console.log("Google sign-in successful, redirecting...");
+        setLoginSuccess(true);
+
+        // Redirect after a short delay to show success message
+        setTimeout(() => {
+          const from = location.state?.from?.pathname || "/";
+          navigate(from, { replace: true });
+        }, 1000);
+      } else {
+        // Handle error from Google sign-in
+        setError(result.error || "Failed to sign in with Google");
         setLoading(false);
         setLoginSuccess(false);
-      }, 5000);
-
-      // Initiate Google sign-in (this will redirect)
-      await signInWithGoogle();
-
-      // This code won't run immediately due to the redirect
-      clearTimeout(signInTimeout);
+      }
     } catch (error) {
       console.error("Google sign-in error:", error);
       setError("Failed to sign in with Google. Please try again.");
@@ -202,7 +205,7 @@ const Login = () => {
                 </div>
                 <p>
                   {loading
-                    ? "Redirecting to Google sign-in..."
+                    ? "Opening Google sign-in..."
                     : "Login successful! Redirecting..."}
                 </p>
               </div>
