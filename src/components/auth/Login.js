@@ -61,60 +61,27 @@ const Login = () => {
     setLoginSuccess(true); // Show loading indicator immediately
 
     try {
-      // Check if there's already a pending Google sign-in
-      const hasExistingAttempt =
-        localStorage.getItem("googleSignInAttempt") === "true";
-      const startTime = localStorage.getItem("googleSignInStartTime");
+      // Simple message to show the user
+      console.log("Initiating Google sign-in");
 
-      if (hasExistingAttempt && startTime) {
-        const elapsedTime = Date.now() - parseInt(startTime);
-        // If there's a sign-in that's been pending for more than 30 seconds, clear it
-        if (elapsedTime > 30000) {
-          console.log("Clearing stale Google sign-in attempt");
-          localStorage.removeItem("googleSignInAttempt");
-          localStorage.removeItem("googleSignInStartTime");
-        } else {
-          // There's a recent sign-in attempt still in progress
-          console.log("Google sign-in already in progress, waiting...");
-        }
-      }
-
-      // Set a timeout to handle potential delays
+      // Set a timeout to hide the loading indicator if redirect takes too long
+      // This improves UX by not showing an indefinite loading state
       const signInTimeout = setTimeout(() => {
-        setError(
-          "Google sign-in is taking longer than expected. Please try again or use email login."
-        );
+        console.log("Redirect in progress...");
+        // Don't show error, just hide the loading indicator after 5 seconds
+        // since the redirect is likely in progress
         setLoading(false);
         setLoginSuccess(false);
-      }, 8000); // 8 seconds timeout (reduced from 10)
+      }, 5000);
 
-      // Attempt to sign in with Google (will try popup first, then redirect if needed)
-      const result = await signInWithGoogle();
+      // Initiate Google sign-in (this will redirect)
+      await signInWithGoogle();
 
-      // Clear the timeout
+      // This code won't run immediately due to the redirect
       clearTimeout(signInTimeout);
-
-      if (result.success) {
-        if (!result.redirect) {
-          // If we got a direct result (from popup), show success and redirect
-          setLoginSuccess(true);
-          setTimeout(() => {
-            const from = location.state?.from?.pathname || "/";
-            navigate(from, { replace: true });
-          }, 1000);
-        }
-        // If it was a redirect, the page will reload/redirect automatically
-      } else {
-        // Handle error from Google sign-in
-        setError(result.error || "Failed to sign in with Google");
-        setLoading(false);
-        setLoginSuccess(false);
-      }
     } catch (error) {
       console.error("Google sign-in error:", error);
-      setError(
-        "An unexpected error occurred. Please try again or use email login."
-      );
+      setError("Failed to sign in with Google. Please try again.");
       setLoading(false);
       setLoginSuccess(false);
     }
@@ -235,9 +202,7 @@ const Login = () => {
                 </div>
                 <p>
                   {loading
-                    ? localStorage.getItem("googleSignInAttempt") === "true"
-                      ? "Opening Google sign-in..."
-                      : "Preparing sign-in..."
+                    ? "Redirecting to Google sign-in..."
                     : "Login successful! Redirecting..."}
                 </p>
               </div>
