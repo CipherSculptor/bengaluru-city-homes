@@ -25,16 +25,12 @@
     "sib-api-v3-sdk": "^8.5.0",
     "web-vitals": "^2.1.4"
   },
-  "devDependencies": {
-    "@vercel/node": "^3.0.24"
-  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "server": "node backend/server.js",
-    "vercel-build": "npm run build"
+    "server": "node src/server.js"
   },
   "eslintConfig": {
     "extends": [
