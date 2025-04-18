@@ -6,13 +6,31 @@ const fs = require("fs");
 const { sendBookingConfirmation } = require("./utils/emailService");
 
 const app = express();
-app.use(cors());
+
+// Configure CORS to allow requests from your Vercel domain
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://bengaluru-city-homes.vercel.app",
+      "https://bengaluru-city-homes-ciphersculptors-projects.vercel.app",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// Serve static files from the React app in production
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../build")));
-}
+// Add health check endpoint
+app.get("/api/health", (_, res) => {
+  res.json({ status: "ok", message: "Server is running" });
+});
+
+// Add booking status endpoint
+app.get("/api/booking-status", (_, res) => {
+  res.json({ status: "ok", message: "Booking server is available" });
+});
 
 // Ensure the bookings directory exists
 const bookingsDir = path.join(__dirname, "bookings");
@@ -292,13 +310,6 @@ app.get("/api/all-bookings", async (_, res) => {
       .json({ success: false, message: "Error retrieving bookings" });
   }
 });
-
-// For any other GET request, serve the React app in production
-if (process.env.NODE_ENV === "production") {
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../build", "index.html"));
-  });
-}
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
