@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { signInWithPopup } from "firebase/auth";
 import "./Login.css";
 import Logo from "../../assets/Logo.png";
 
@@ -112,49 +111,27 @@ const Login = () => {
     try {
       console.log("Using direct link for Google sign-in");
 
-      // Get the auth objects for direct handling
-      const result = await signInWithGoogle("direct-link");
+      // Use the redirect method directly from our context
+      // This avoids using Firebase functions directly in this component
+      const result = await signInWithGoogle("redirect");
 
-      if (result.success && result.directLink) {
-        // Open the popup manually
-        const provider = result.provider;
-        const auth = result.auth;
+      if (result.success) {
+        // For redirect, the page will reload, so we just show a message
+        console.log("Redirect initiated, page will reload");
 
-        try {
-          // Attempt the popup sign-in directly
-          await signInWithPopup(auth, provider);
-
-          // If successful, update UI and redirect
-          console.log("Direct link sign-in successful");
-          setLoginSuccess(true);
-
-          // Set the current user (in case the context doesn't catch it)
-          setTimeout(() => {
-            const from = location.state?.from?.pathname || "/";
-            navigate(from, { replace: true });
-          }, 1000);
-        } catch (popupError) {
-          console.error("Direct link popup error:", popupError);
-
-          // If popup fails, try redirect as last resort
-          if (
-            popupError.code === "auth/popup-blocked" ||
-            popupError.code === "auth/popup-closed-by-user"
-          ) {
-            setError(
-              "Popup was blocked. Trying redirect method as last resort..."
-            );
-
-            // Use redirect as final fallback
-            await signInWithGoogle("redirect");
-
-            // UI will be reloaded by redirect
-          } else {
-            throw popupError;
-          }
-        }
+        // Keep the loading state for a bit longer
+        setTimeout(() => {
+          setError(
+            "If you're not redirected automatically, please check your popup blocker settings."
+          );
+          setLoading(false);
+          setLoginSuccess(false);
+        }, 8000);
       } else {
-        throw new Error("Failed to prepare direct link authentication");
+        // Handle error
+        setError(result.error || "Failed to sign in with Google");
+        setLoading(false);
+        setLoginSuccess(false);
       }
     } catch (error) {
       console.error("Direct link sign-in error:", error);
