@@ -6,7 +6,6 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
 } from "firebase/auth";
@@ -34,250 +33,86 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Google sign-in function with improved error handling and debugging
-  const signInWithGoogle = async (method = "auto") => {
+  // Google sign-in function
+  const signInWithGoogle = async () => {
     try {
-      // Set authentication tracking flags in localStorage
-      localStorage.setItem("googleAuthAttempt", "true");
-      localStorage.setItem("googleAuthStartTime", Date.now().toString());
-      localStorage.setItem("googleAuthMethod", method);
-
-      console.log(`Starting Google sign-in (method: ${method})`);
-
-      // Create provider with simplified configuration
+      console.log("Starting Google sign-in process...");
       const provider = new GoogleAuthProvider();
 
-      // Add prompt parameter for better user experience
+      // Simplify the provider configuration
+      provider.addScope("email");
+
+      // Use a simpler configuration
       provider.setCustomParameters({
         prompt: "select_account",
       });
 
-      // For Vercel deployment, we'll use redirect method by default for better compatibility
-      const isProduction = window.location.hostname !== "localhost";
-
-      if (isProduction) {
-        // Use redirect method for production environment
-        console.log("Using redirect method for production environment...");
-        localStorage.setItem("googleAuthMethod", "redirect");
-        await signInWithRedirect(auth, provider);
-        return { success: true, redirect: true, method: "redirect" };
-      } else if (method === "auto" || method === "popup") {
-        try {
-          // Try popup first if auto or popup method is requested (in development)
-          console.log("Attempting popup sign-in in development...");
-          const result = await signInWithPopup(auth, provider);
-
-          // Clear auth tracking flags on success
-          localStorage.removeItem("googleAuthAttempt");
-          localStorage.removeItem("googleAuthStartTime");
-          localStorage.removeItem("googleAuthMethod");
-
-          // If we get here, sign-in was successful
-          console.log("Google popup sign-in successful");
-          return {
-            success: true,
-            user: result.user,
-            method: "popup",
-          };
-        } catch (popupError) {
-          // If popup fails, fall back to redirect
-          console.log("Popup failed:", popupError);
-
-          console.log("Using redirect fallback...");
-          localStorage.setItem("googleAuthMethod", "redirect");
-          await signInWithRedirect(auth, provider);
-          return { success: true, redirect: true, method: "redirect" };
-        }
-      } else if (method === "redirect") {
-        // Direct redirect method
-        console.log("Using redirect method directly...");
-        await signInWithRedirect(auth, provider);
-        return { success: true, redirect: true, method: "redirect" };
-      } else if (method === "direct-link") {
-        // For direct link in production, use redirect
-        if (isProduction) {
-          console.log("Using redirect for direct link in production...");
-          await signInWithRedirect(auth, provider);
-          return {
-            success: true,
-            redirect: true,
-            method: "direct-link-redirect",
-          };
-        } else {
-          // In development, try popup first
-          try {
-            console.log("Attempting direct link popup in development...");
-            const result = await signInWithPopup(auth, provider);
-            console.log("Direct link popup successful", result);
-            return {
-              success: true,
-              user: result.user,
-              method: "direct-link-popup",
-              completed: true,
-            };
-          } catch (directError) {
-            console.error("Direct link popup failed:", directError);
-            // Fall back to redirect
-            console.log("Falling back to redirect for direct link...");
-            await signInWithRedirect(auth, provider);
-            return {
-              success: true,
-              redirect: true,
-              method: "direct-link-redirect",
-            };
-          }
-        }
-      }
+      console.log("Initiating redirect to Google...");
+      // Use redirect instead of popup for better compatibility
+      await signInWithRedirect(auth, provider);
+      console.log("Redirect initiated"); // This may not be logged due to redirect
+      return { success: true };
     } catch (error) {
       console.error("Google sign-in error:", error);
-
-      // Clear auth tracking flags on error
-      localStorage.removeItem("googleAuthAttempt");
-      localStorage.removeItem("googleAuthStartTime");
-      localStorage.removeItem("googleAuthMethod");
-
-      // Handle specific error codes with improved messages
-      let errorMessage = "Failed to sign in with Google";
-      if (error.code) {
-        console.log("Error code:", error.code);
-        if (error.code === "auth/popup-blocked") {
-          errorMessage = "Popup was blocked. Please try the direct link below.";
-        } else if (error.code === "auth/popup-closed-by-user") {
-          errorMessage =
-            "Sign-in was cancelled. Please try again or use the direct link.";
-        } else if (error.code === "auth/cancelled-popup-request") {
-          errorMessage =
-            "Another sign-in attempt is in progress. Please wait or try the direct link.";
-        } else if (error.code === "auth/network-request-failed") {
-          errorMessage =
-            "Network error. Please check your connection and try again.";
-        } else if (error.code === "auth/timeout") {
-          errorMessage =
-            "Authentication timed out. Please try again or use the direct link.";
-        }
-      }
-
-      return { success: false, error: errorMessage, method: method };
+      let errorMessage =
+        "Failed to sign in with Google: " + (error.message || error);
+      return { success: false, error: errorMessage };
     }
   };
 
-  // Enhanced redirect result handler with better debugging and error handling
+  // Handle redirect result
   useEffect(() => {
     const handleRedirectResult = async () => {
       try {
-        // Always try to get the redirect result first
         console.log("Checking for redirect result...");
+        // Add a flag to localStorage to track if we're in the middle of auth
+        const isAuthInProgress = localStorage.getItem("authInProgress");
+        console.log("Auth in progress?", isAuthInProgress);
+
         const result = await getRedirectResult(auth);
+        console.log("Redirect result:", result ? "Received" : "None");
 
         if (result && result.user) {
           // User successfully signed in with redirect
-          console.log("Redirect sign-in successful", result.user);
+          console.log("Redirect sign-in successful", result.user.email);
           setCurrentUser(result.user);
+          localStorage.removeItem("authInProgress"); // Clear the flag
 
-          // Clear all auth tracking flags on success
-          localStorage.removeItem("googleAuthAttempt");
-          localStorage.removeItem("googleAuthStartTime");
-          localStorage.removeItem("googleAuthMethod");
+          // Show success alert
+          alert("Google sign-in successful!");
 
-          // Store success flag for UI feedback
-          localStorage.setItem("googleAuthSuccess", "true");
-          localStorage.setItem("googleAuthSuccessTime", Date.now().toString());
-          return true;
-        }
-
-        // No redirect result found, check for pending attempts
-        console.log("No redirect result found");
-
-        // Check if we have a pending Google auth attempt
-        const hasAuthAttempt =
-          localStorage.getItem("googleAuthAttempt") === "true";
-        const authStartTime = localStorage.getItem("googleAuthStartTime");
-        const authMethod = localStorage.getItem("googleAuthMethod");
-
-        if (hasAuthAttempt) {
-          // Calculate elapsed time for debugging
-          if (authStartTime) {
-            const elapsedTime = Date.now() - parseInt(authStartTime);
-            console.log(
-              `Auth attempt has been pending for ${elapsedTime}ms (method: ${
-                authMethod || "unknown"
-              })`
-            );
-
-            // If the auth attempt has been pending for too long, clear it
-            if (elapsedTime > 30000) {
-              // 30 seconds timeout (longer for production)
-              console.warn("Auth attempt timed out after 30 seconds");
-              localStorage.removeItem("googleAuthAttempt");
-              localStorage.removeItem("googleAuthStartTime");
-              localStorage.removeItem("googleAuthMethod");
-            }
-          }
+          // Redirect to home page
+          window.location.href = "/";
         } else {
-          // Check for success flag from previous redirect
-          const authSuccess =
-            localStorage.getItem("googleAuthSuccess") === "true";
-          const authSuccessTime = localStorage.getItem("googleAuthSuccessTime");
-
-          if (authSuccess && authSuccessTime) {
-            const elapsedTime = Date.now() - parseInt(authSuccessTime);
-
-            // Only process recent successes (within last 10 seconds - increased for production)
-            if (elapsedTime < 10000) {
-              console.log("Processing recent auth success");
-
-              // Clear success flags
-              localStorage.removeItem("googleAuthSuccess");
-              localStorage.removeItem("googleAuthSuccessTime");
-
-              // Check if we need to redirect the user
-              if (!currentUser) {
-                // Try to get the result one more time
-                try {
-                  const result = await getRedirectResult(auth);
-                  if (result && result.user) {
-                    setCurrentUser(result.user);
-                    return true;
-                  }
-                } catch (e) {
-                  console.error(
-                    "Error getting redirect result after success:",
-                    e
-                  );
-                }
-              }
-            } else {
-              // Clear stale success flags
-              localStorage.removeItem("googleAuthSuccess");
-              localStorage.removeItem("googleAuthSuccessTime");
-            }
+          console.log("No redirect result found");
+          if (isAuthInProgress) {
+            console.log("Auth was in progress but no result found");
+            localStorage.removeItem("authInProgress"); // Clear the flag
           }
         }
-
-        return false;
       } catch (error) {
         console.error("Error with redirect sign-in:", error);
-
-        // Clear auth tracking flags on error
-        localStorage.removeItem("googleAuthAttempt");
-        localStorage.removeItem("googleAuthStartTime");
-        localStorage.removeItem("googleAuthMethod");
-        return false;
+        localStorage.removeItem("authInProgress"); // Clear the flag on error
+        alert("Error with Google sign-in: " + error.message);
       }
     };
 
-    // Run once when the component mounts
+    // Execute immediately
     handleRedirectResult();
 
-    // For production environments, check more frequently
-    const isProduction = window.location.hostname !== "localhost";
-    const checkInterval = isProduction ? 1000 : 2000; // Check every 1 second in production
+    // Also set up a listener for auth state changes
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? user.email : "No user");
+      if (user) {
+        setCurrentUser(user);
+        localStorage.removeItem("authInProgress"); // Clear the flag
+      }
+    });
 
-    // Set up an interval to check periodically (helpful for redirect flows)
-    const intervalId = setInterval(handleRedirectResult, checkInterval);
-
-    return () => clearInterval(intervalId);
-  }, [currentUser]);
+    return () => {
+      unsubscribeAuth(); // Clean up the auth state listener
+    };
+  }, []);
 
   // Login function
   const login = async (email, password) => {

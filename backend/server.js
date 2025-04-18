@@ -10,8 +10,8 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files from the React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../build')));
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../build")));
 }
 
 // Ensure the bookings directory exists
@@ -294,9 +294,9 @@ app.get("/api/all-bookings", async (_, res) => {
 });
 
 // For any other GET request, serve the React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build', 'index.html'));
+if (process.env.NODE_ENV === "production") {
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../build", "index.html"));
   });
 }
 

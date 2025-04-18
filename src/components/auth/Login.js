@@ -55,118 +55,48 @@ const Login = () => {
     setShowPassword(!showPassword);
   };
 
-  // Handler for Google sign-in (with popup and redirect fallback)
   const handleGoogleSignIn = async () => {
     setError("");
     setLoading(true);
-    setLoginSuccess(true); // Show loading indicator immediately
 
     try {
-      // Check if we're in production
-      const isProduction = window.location.hostname !== "localhost";
-      console.log(
-        `Environment: ${isProduction ? "Production" : "Development"}`
-      );
-      console.log("Initiating Google sign-in");
+      // Show a message to the user that we're preparing the Google sign-in
+      setLoginSuccess(true); // Reuse the success message UI for loading
 
-      // Sign-in with Google (auto method will use redirect in production)
-      const result = await signInWithGoogle("auto");
+      // Set a flag in localStorage to track auth in progress
+      localStorage.setItem("authInProgress", "true");
+      console.log("Setting auth in progress flag");
 
-      if (result.success) {
-        if (isProduction || result.redirect) {
-          // For production or redirect flow
-          console.log("Redirect initiated, waiting for completion...");
-
-          // Show a message after a delay if the page hasn't reloaded
-          setTimeout(() => {
-            setError(
-              "Authentication in progress. Please wait while we sign you in..."
-            );
-          }, 3000);
-
-          // Keep the loading state active
-          return;
-        } else {
-          // Sign-in successful with popup (development only)
-          console.log("Google sign-in successful, redirecting...");
-          setLoginSuccess(true);
-
-          // Redirect after a short delay to show success message
-          setTimeout(() => {
-            const from = location.state?.from?.pathname || "/";
-            navigate(from, { replace: true });
-          }, 1000);
-        }
-      } else {
-        // Handle error from Google sign-in
-        setError(result.error || "Failed to sign in with Google");
+      // Set a timeout to handle potential delays
+      const signInTimeout = setTimeout(() => {
+        setError(
+          "Google sign-in is taking longer than expected. Please try again."
+        );
         setLoading(false);
         setLoginSuccess(false);
-      }
+        localStorage.removeItem("authInProgress"); // Clear the flag on timeout
+      }, 15000); // 15 seconds timeout
+
+      // Log the current URL for debugging
+      console.log("Current URL:", window.location.href);
+
+      // Log the attempt
+      console.log("Attempting Google sign-in...");
+
+      // This will redirect to Google sign-in page
+      const result = await signInWithGoogle();
+      console.log("Sign-in function returned:", result);
+
+      // Clear the timeout if the redirect happens successfully
+      clearTimeout(signInTimeout);
+
+      // The page will reload after redirect, so we don't need to handle success here
     } catch (error) {
       console.error("Google sign-in error:", error);
-      setError("Failed to sign in with Google. Please try again.");
+      setError("An unexpected error occurred: " + error.message);
       setLoading(false);
       setLoginSuccess(false);
-    }
-  };
-
-  // Handler for direct link Google sign-in
-  const handleDirectLinkSignIn = async () => {
-    setError("");
-    setLoading(true);
-
-    try {
-      console.log("Using direct link for Google sign-in");
-
-      // Check if we're in production
-      const isProduction = window.location.hostname !== "localhost";
-      console.log(
-        `Environment: ${isProduction ? "Production" : "Development"}`
-      );
-
-      // Call the direct link method in AuthContext
-      const result = await signInWithGoogle("direct-link");
-
-      if (result.success) {
-        // For production, we'll always get a redirect
-        if (isProduction || result.redirect) {
-          // If redirect was initiated, show a message
-          console.log("Redirect initiated, waiting for completion...");
-          setLoginSuccess(true);
-
-          // Show a message after a delay if the page hasn't reloaded
-          setTimeout(() => {
-            setError(
-              "Authentication in progress. Please wait while we sign you in..."
-            );
-          }, 3000);
-
-          // Keep the loading state active
-          return;
-        } else if (result.completed) {
-          // If authentication completed successfully (development only)
-          console.log("Direct link sign-in successful");
-          setLoginSuccess(true);
-
-          // Redirect to home page
-          setTimeout(() => {
-            const from = location.state?.from?.pathname || "/";
-            navigate(from, { replace: true });
-          }, 1000);
-        } else {
-          // Unexpected result
-          throw new Error("Unexpected authentication result");
-        }
-      } else {
-        // Authentication failed
-        throw new Error(result.error || "Authentication failed");
-      }
-    } catch (error) {
-      console.error("Direct link sign-in error:", error);
-      setError("Failed to sign in with Google. Please try again later.");
-      setLoading(false);
-      setLoginSuccess(false);
+      localStorage.removeItem("authInProgress"); // Clear the flag on error
     }
   };
 
@@ -285,7 +215,7 @@ const Login = () => {
                 </div>
                 <p>
                   {loading
-                    ? "Connecting to Google authentication..."
+                    ? "Preparing Google sign-in..."
                     : "Login successful! Redirecting..."}
                 </p>
               </div>
@@ -297,39 +227,7 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="login-form">
-              {error && (
-                <div
-                  className="error-message"
-                  style={{
-                    backgroundColor: "#ffebee",
-                    color: "#d32f2f",
-                    padding: "10px",
-                    borderRadius: "4px",
-                    marginBottom: "15px",
-                    border: "1px solid #ffcdd2",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ marginRight: "8px" }}
-                    >
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="12" y1="8" x2="12" y2="12"></line>
-                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    {error}
-                  </div>
-                </div>
-              )}
+              {error && <div className="error-message">{error}</div>}
               <div className="form-group">
                 <input
                   type="email"
@@ -448,43 +346,16 @@ const Login = () => {
                 <span>Google</span>
               </button>
 
-              {/* Direct link fallback option */}
-              <div className="direct-link-container">
-                <button
-                  type="button"
-                  className="direct-link-btn"
-                  disabled={loading}
-                  onClick={handleDirectLinkSignIn}
+              {/* Fallback direct link to Firebase auth */}
+              <div className="fallback-message">
+                <p>If the Google sign-in button doesn't work, try this:</p>
+                <a
+                  href="https://bengalurucityhomes.firebaseapp.com/__/auth/handler?apiKey=AIzaSyCC8zSd4DKiuIyHndqEbGvfxowOPUWlX8g&authType=signInViaRedirect&providerId=google.com"
+                  className="fallback-link"
+                  target="_self"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 48 48"
-                    width="16"
-                    height="16"
-                  >
-                    <path
-                      fill="#FFC107"
-                      d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
-                    />
-                    <path
-                      fill="#FF3D00"
-                      d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
-                    />
-                    <path
-                      fill="#4CAF50"
-                      d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
-                    />
-                    <path
-                      fill="#1976D2"
-                      d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
-                    />
-                  </svg>
-                  <span>Sign in with Google</span>
-                </button>
-                <p className="direct-link-info">
-                  Alternative sign-in method if the Google button above doesn't
-                  work
-                </p>
+                  Direct Google Sign-in Link
+                </a>
               </div>
               <button type="button" className="facebook-btn" disabled={loading}>
                 <svg

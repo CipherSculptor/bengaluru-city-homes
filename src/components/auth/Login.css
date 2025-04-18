@@ -260,26 +260,19 @@
 }
 
 .loading-spinner {
-  animation: spin 1s linear infinite;
+  animation: spin 1.5s linear infinite;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
   font-size: 24px;
   font-weight: bold;
-  background: linear-gradient(135deg, #40C491, #0c3b69);
-  box-shadow: 0 4px 10px rgba(12, 59, 105, 0.2);
-  transition: all 0.3s ease;
 }
 
 .login-success-message p {
   font-size: 18px;
   color: #333;
-  margin: 15px 0 0;
-  text-align: center;
-  max-width: 80%;
-  line-height: 1.4;
-  animation: fadeIn 0.5s ease-out;
+  margin: 0;
 }
 
 /* Error Message */
@@ -591,12 +584,44 @@
 /* Social Login */
 .social-login {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 15px;
 }
 
+/* Fallback message */
+.fallback-message {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.fallback-message p {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 10px;
+}
+
+.fallback-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #4285F4;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.fallback-link:hover {
+  background-color: #3367D6;
+  text-decoration: none;
+  color: white;
+}
+
 .google-btn,
-.google-redirect-btn,
 .facebook-btn {
   flex: 1;
   display: flex;
@@ -610,68 +635,9 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
-  margin-bottom: 10px;
-}
-
-/* Direct link container and button styles */
-.direct-link-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 10px;
-  margin-bottom: 15px;
-  width: 100%;
-}
-
-.direct-link-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border: 1px solid #4285F4;
-  border-radius: 8px;
-  background-color: #4285F4;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-  color: white;
-  font-weight: 500;
-  margin-bottom: 6px;
-  width: 100%;
-  max-width: 200px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.direct-link-btn:hover {
-  background-color: #3367D6;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.direct-link-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.direct-link-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.direct-link-info {
-  font-size: 12px;
-  color: #555;
-  text-align: center;
-  margin: 0;
-  font-style: italic;
-  max-width: 220px;
-  line-height: 1.4;
 }
 
 .google-btn svg,
-.google-redirect-btn svg,
 .facebook-btn svg {
   width: 22px;
   height: 22px;
@@ -679,7 +645,6 @@
 }
 
 .google-btn:hover,
-.google-redirect-btn:hover,
 .facebook-btn:hover {
   background-color: #f8fafd;
   transform: translateY(-3px);
@@ -687,19 +652,13 @@
   border-color: #d0d0d0;
 }
 
-.google-redirect-btn:hover {
-  background-color: #f0f0f0;
-}
-
 .google-btn:active,
-.google-redirect-btn:active,
 .facebook-btn:active {
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.03);
 }
 
 .google-btn:disabled,
-.google-redirect-btn:disabled,
 .facebook-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -707,15 +666,10 @@
 }
 
 .google-btn span,
-.google-redirect-btn span,
 .facebook-btn span {
   font-size: 14px;
   font-weight: 500;
   color: #555;
-}
-
-.google-redirect-btn span {
-  color: #666;
 }
 
 /* Responsive */
@@ -787,12 +741,6 @@
 
   .social-login {
     flex-direction: column;
-  }
-
-  .google-btn,
-  .google-redirect-btn,
-  .facebook-btn {
-    width: 100%;
   }
 
   .login-header h1 {
