@@ -37,10 +37,23 @@ export const AuthProvider = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
+
+      // Add scopes for better user experience
+      provider.addScope("profile");
+      provider.addScope("email");
+
+      // Set custom parameters
+      provider.setCustomParameters({
+        prompt: "select_account",
+        login_hint: "user@example.com",
+        access_type: "online", // Use 'offline' if you need a refresh token
+      });
+
       // Use redirect instead of popup for better compatibility
       await signInWithRedirect(auth, provider);
       return { success: true };
     } catch (error) {
+      console.error("Google sign-in error:", error);
       let errorMessage = "Failed to sign in with Google";
       return { success: false, error: errorMessage };
     }
@@ -50,17 +63,30 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const handleRedirectResult = async () => {
       try {
+        console.log("Checking for redirect result...");
         const result = await getRedirectResult(auth);
         if (result && result.user) {
           // User successfully signed in with redirect
+          console.log("Redirect sign-in successful");
           setCurrentUser(result.user);
+
+          // You could add additional user data handling here
+          // For example, storing user preferences or redirecting to a specific page
+        } else {
+          console.log("No redirect result found");
         }
       } catch (error) {
         console.error("Error with redirect sign-in:", error);
+        // You could add more specific error handling here based on error codes
       }
     };
 
-    handleRedirectResult();
+    // Set a timeout to handle potential delays
+    const timeoutId = setTimeout(() => {
+      handleRedirectResult();
+    }, 500); // Small delay to ensure Firebase is fully initialized
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Login function

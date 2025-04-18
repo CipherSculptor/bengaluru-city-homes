@@ -83,12 +83,30 @@ const SignUp = () => {
     setLoading(true);
 
     try {
+      // Show a message to the user that we're preparing the Google sign-in
+      setSignupSuccess(true); // Reuse the success message UI for loading
+
+      // Set a timeout to handle potential delays
+      const signInTimeout = setTimeout(() => {
+        setError(
+          "Google sign-in is taking longer than expected. Please try again."
+        );
+        setLoading(false);
+        setSignupSuccess(false);
+      }, 10000); // 10 seconds timeout
+
       // This will redirect to Google sign-in page
       await signInWithGoogle();
+
+      // Clear the timeout if the redirect happens successfully
+      clearTimeout(signInTimeout);
+
       // The page will reload after redirect, so we don't need to handle success here
     } catch (error) {
+      console.error("Google sign-in error:", error);
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
+      setSignupSuccess(false);
     }
   };
 
@@ -200,8 +218,16 @@ const SignUp = () => {
           <div className="signup-card">
             {signupSuccess && (
               <div className="signup-success-message">
-                <div className="success-icon">✓</div>
-                <p>Account created successfully! Redirecting...</p>
+                <div
+                  className={`success-icon ${loading ? "loading-spinner" : ""}`}
+                >
+                  {loading ? "⟳" : "✓"}
+                </div>
+                <p>
+                  {loading
+                    ? "Preparing Google sign-in..."
+                    : "Account created successfully! Redirecting..."}
+                </p>
               </div>
             )}
             <div className="signup-header">
