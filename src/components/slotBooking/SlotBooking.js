@@ -94,16 +94,53 @@ const SlotBooking = () => {
   const checkServerAvailability = async () => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-      await fetch("http://localhost:5001/api/book-slot", {
-        method: "HEAD",
-        signal: controller.signal,
-      });
+      // Try multiple endpoints to check server availability
+      const possibleUrls = [
+        "/api/booking-status", // Relative path (preferred)
+        "http://localhost:5001/api/booking-status",
+        "http://127.0.0.1:5001/api/booking-status",
+        window.location.origin + "/api/booking-status", // Full origin path
+      ];
+
+      let serverAvailable = false;
+      let lastError = null;
+
+      // Try each URL until one works
+      for (const url of possibleUrls) {
+        try {
+          console.log(`Checking server availability at: ${url}`);
+          const response = await fetch(url, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Server status response:", data);
+            serverAvailable = true;
+            break;
+          }
+        } catch (err) {
+          console.log(`Error checking ${url}:`, err);
+          lastError = err;
+          // Continue to next URL
+        }
+      }
 
       clearTimeout(timeoutId);
-      setIsServerAvailable(true);
-      console.log("Booking server is available");
+
+      if (serverAvailable) {
+        setIsServerAvailable(true);
+        console.log("Booking server is available");
+      } else {
+        throw lastError || new Error("All server endpoints failed");
+      }
     } catch (error) {
       console.log("Booking server is not available:", error);
       setIsServerAvailable(false);
@@ -193,14 +230,16 @@ const SlotBooking = () => {
 
       // Try multiple API endpoints to ensure connectivity
       const possibleUrls = [
+        "/api/book-slot", // Relative path (preferred)
+        window.location.origin + "/api/book-slot", // Full origin path
         "http://localhost:5001/api/book-slot",
         "http://127.0.0.1:5001/api/book-slot",
-        "/api/book-slot",
       ];
 
       let success = false;
       let lastError = null;
       let serverAvailable = false;
+      let responseData = null;
 
       // Try to connect to the server
       for (const apiUrl of possibleUrls) {
@@ -208,16 +247,19 @@ const SlotBooking = () => {
           console.log("Attempting to submit booking to:", apiUrl);
 
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for mobile
 
           const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Accept: "application/json",
+              "Cache-Control": "no-cache", // Prevent caching
             },
             body: JSON.stringify(formData),
             signal: controller.signal,
+            mode: "cors", // Explicitly request CORS
+            credentials: "same-origin",
           });
 
           clearTimeout(timeoutId);
@@ -225,7 +267,8 @@ const SlotBooking = () => {
           serverAvailable = true;
 
           if (response.ok) {
-            const responseData = await response.json();
+            responseData = await response.json();
+            console.log("Server response:", responseData);
             success = true;
 
             // Check if email was sent successfully
@@ -369,32 +412,66 @@ const SlotBooking = () => {
   };
 
   // Server status indicator component
-  const ServerStatusIndicator = () => (
-    <div
-      className="server-status-indicator"
-      style={{
-        marginBottom: "15px",
-        fontSize: "0.8rem",
-        color: isServerAvailable ? "#4CAF50" : "#f44336",
-        display: "flex",
-        alignItems: "center",
-      }}
-    >
-      <span
+  const ServerStatusIndicator = () => {
+    // Check server status again when clicked
+    const handleRetryConnection = () => {
+      checkServerAvailability();
+    };
+
+    return (
+      <div
+        className="server-status-indicator"
         style={{
-          display: "inline-block",
-          width: "10px",
-          height: "10px",
-          borderRadius: "50%",
-          backgroundColor: isServerAvailable ? "#4CAF50" : "#f44336",
-          marginRight: "5px",
+          marginBottom: "15px",
+          fontSize: "0.8rem",
+          color: isServerAvailable ? "#4CAF50" : "#f44336",
+          display: "flex",
+          alignItems: "center",
+          flexDirection: "column",
+          padding: "10px",
+          backgroundColor: "#f8f9fa",
+          borderRadius: "5px",
+          border: `1px solid ${isServerAvailable ? "#c3e6cb" : "#f5c6cb"}`,
         }}
-      ></span>
-      {isServerAvailable
-        ? "Booking server is online"
-        : "Booking server is offline - bookings will be saved locally"}
-    </div>
-  );
+      >
+        <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              backgroundColor: isServerAvailable ? "#4CAF50" : "#f44336",
+              marginRight: "5px",
+            }}
+          ></span>
+          <span style={{ flex: 1 }}>
+            {isServerAvailable
+              ? "Booking server is online - your booking will be saved to our database"
+              : "Booking server is offline - bookings will be saved locally on your device"}
+          </span>
+        </div>
+
+        {!isServerAvailable && (
+          <button
+            onClick={handleRetryConnection}
+            style={{
+              marginTop: "8px",
+              padding: "5px 10px",
+              fontSize: "0.8rem",
+              backgroundColor: "#6c757d",
+              color: "white",
+              border: "none",
+              borderRadius: "3px",
+              cursor: "pointer",
+            }}
+          >
+            Retry Connection
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // Floating elements for visual interest
   const renderFloatingElements = () => {
