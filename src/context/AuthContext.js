@@ -92,10 +92,15 @@ export const AuthProvider = ({ children }) => {
         await signInWithRedirect(auth, provider);
         return { success: true, redirect: true, method: "redirect" };
       } else if (method === "direct-link") {
-        // For direct link, we'll just use redirect method for simplicity and compatibility
-        console.log("Using redirect method for direct link...");
-        await signInWithRedirect(auth, provider);
-        return { success: true, redirect: true, method: "redirect" };
+        // Direct link method - just return the auth object for direct handling
+        console.log("Preparing direct link authentication...");
+        return {
+          success: true,
+          directLink: true,
+          method: "direct-link",
+          provider: provider,
+          auth: auth,
+        };
       }
     } catch (error) {
       console.error("Google sign-in error:", error);
