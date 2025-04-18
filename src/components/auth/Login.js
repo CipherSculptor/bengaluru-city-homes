@@ -60,21 +60,9 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const result = await signInWithGoogle();
-
-      if (result.success) {
-        setLoginSuccess(true);
-
-        // Redirect after a short delay to show success message
-        setTimeout(() => {
-          // Redirect to the page they were trying to access, or home
-          const from = location.state?.from?.pathname || "/";
-          navigate(from, { replace: true });
-        }, 1500);
-      } else {
-        setError(result.error || "Failed to sign in with Google");
-        setLoading(false);
-      }
+      // This will redirect to Google sign-in page
+      await signInWithGoogle();
+      // The page will reload after redirect, so we don't need to handle success here
     } catch (error) {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);

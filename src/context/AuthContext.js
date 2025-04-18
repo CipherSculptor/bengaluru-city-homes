@@ -6,7 +6,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { auth } from "../firebase/config";
 
@@ -36,29 +37,31 @@ export const AuthProvider = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      return { success: true, user: result.user };
+      // Use redirect instead of popup for better compatibility
+      await signInWithRedirect(auth, provider);
+      return { success: true };
     } catch (error) {
       let errorMessage = "Failed to sign in with Google";
-
-      switch (error.code) {
-        case "auth/popup-closed-by-user":
-          errorMessage =
-            "Sign-in popup was closed before completing the sign-in";
-          break;
-        case "auth/cancelled-popup-request":
-          errorMessage = "Sign-in popup request was cancelled";
-          break;
-        case "auth/popup-blocked":
-          errorMessage = "Sign-in popup was blocked by the browser";
-          break;
-        default:
-          errorMessage = error.message;
-      }
-
       return { success: false, error: errorMessage };
     }
   };
+
+  // Handle redirect result
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          // User successfully signed in with redirect
+          setCurrentUser(result.user);
+        }
+      } catch (error) {
+        console.error("Error with redirect sign-in:", error);
+      }
+    };
+
+    handleRedirectResult();
+  }, []);
 
   // Login function
   const login = async (email, password) => {

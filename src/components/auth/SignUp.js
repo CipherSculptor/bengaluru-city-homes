@@ -83,19 +83,9 @@ const SignUp = () => {
     setLoading(true);
 
     try {
-      const result = await signInWithGoogle();
-
-      if (result.success) {
-        setSignupSuccess(true);
-
-        // Redirect after a short delay to show success message
-        setTimeout(() => {
-          navigate("/");
-        }, 1500);
-      } else {
-        setError(result.error || "Failed to sign up with Google");
-        setLoading(false);
-      }
+      // This will redirect to Google sign-in page
+      await signInWithGoogle();
+      // The page will reload after redirect, so we don't need to handle success here
     } catch (error) {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
