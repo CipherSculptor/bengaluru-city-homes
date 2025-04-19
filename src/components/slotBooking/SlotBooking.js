@@ -89,53 +89,20 @@ const SlotBooking = () => {
     checkServerAvailability();
   }, [location.state]);
 
-  // Function to generate Excel file from booking data
+  // This function was previously used to generate and download Excel files
+  // Now we're only saving bookings on the server in a single all-bookings.xlsx file
   const generateExcelFile = (bookingData) => {
-    try {
-      // Create a simple CSV string (easier than full Excel)
-      const headers = [
-        "Property",
-        "Date",
-        "Time",
-        "Name",
-        "Email",
-        "Contact Number",
-      ];
-      const values = [
-        bookingData.property,
-        bookingData.date,
-        bookingData.time,
-        bookingData.name,
-        bookingData.email,
-        bookingData.contactNumber,
-      ];
-
-      // Create CSV content
-      let csvContent = headers.join(",") + "\n";
-      csvContent += values.join(",") + "\n";
-
-      // Create a blob and download link
-      const blob = new Blob([csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-
-      // Create download link and trigger click
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute(
-        "download",
-        `booking_${bookingData.name}_${bookingData.date}.csv`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      return true;
-    } catch (error) {
-      console.error("Error generating Excel file:", error);
-      return false;
-    }
+    // Function is kept as a placeholder to maintain code structure
+    // but doesn't download any files anymore
+    console.log("Booking data saved to server's all-bookings.xlsx file:", {
+      property: bookingData.property,
+      date: bookingData.date,
+      time: bookingData.time,
+      name: bookingData.name,
+      email: bookingData.email,
+      contactNumber: bookingData.contactNumber,
+    });
+    return true;
   };
 
   // Function to check if the booking server is available
@@ -381,7 +348,7 @@ const SlotBooking = () => {
 
       // Show a more user-friendly error message
       alert(
-        "Your booking has been saved locally and downloaded as an Excel file."
+        "Your booking has been saved locally. Please try again later when the server is available."
       );
 
       // Show success message
@@ -434,7 +401,7 @@ const SlotBooking = () => {
         }}
       ></span>
       <span style={{ fontWeight: "500" }}>
-        Your booking will be saved to our server and downloaded as Excel
+        Your booking will be saved to our server in a central booking database
       </span>
     </div>
   );
