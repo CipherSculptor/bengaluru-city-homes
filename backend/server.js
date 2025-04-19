@@ -311,6 +311,34 @@ app.get("/api/all-bookings", async (_, res) => {
   }
 });
 
+// Endpoint to download the all-bookings.xlsx file
+app.get("/api/download-bookings", (req, res) => {
+  try {
+    // Check if the file exists
+    if (!fs.existsSync(allBookingsFilePath)) {
+      return res.status(404).send("Bookings file not found");
+    }
+
+    // Set headers for file download
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=all-bookings.xlsx"
+    );
+
+    // Send the file
+    res.sendFile(allBookingsFilePath);
+
+    console.log("Excel file downloaded successfully");
+  } catch (error) {
+    console.error("Error downloading bookings file:", error);
+    res.status(500).send("Error downloading bookings file");
+  }
+});
+
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
