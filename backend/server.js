@@ -312,12 +312,23 @@ app.get("/api/all-bookings", async (_, res) => {
 });
 
 // Endpoint to download the all-bookings.xlsx file
-app.get("/api/download-bookings", (req, res) => {
+app.get("/api/download-bookings", async (req, res) => {
   try {
-    // Check if the file exists
+    // Check if the file exists, if not create it
     if (!fs.existsSync(allBookingsFilePath)) {
-      return res.status(404).send("Bookings file not found");
+      console.log("Creating new all-bookings.xlsx file for download");
+      await createNewExcelFile();
+
+      // Double check if file was created
+      if (!fs.existsSync(allBookingsFilePath)) {
+        console.error("Failed to create all-bookings.xlsx file");
+        return res.status(500).send("Failed to create bookings file");
+      }
     }
+
+    // Log the file path for debugging
+    console.log("Sending file from path:", allBookingsFilePath);
+    console.log("File exists check:", fs.existsSync(allBookingsFilePath));
 
     // Set headers for file download
     res.setHeader(
@@ -329,10 +340,17 @@ app.get("/api/download-bookings", (req, res) => {
       "attachment; filename=all-bookings.xlsx"
     );
 
-    // Send the file
-    res.sendFile(allBookingsFilePath);
-
-    console.log("Excel file downloaded successfully");
+    // Send the file with absolute path
+    const absolutePath = path.resolve(allBookingsFilePath);
+    console.log("Absolute path:", absolutePath);
+    res.sendFile(absolutePath, (err) => {
+      if (err) {
+        console.error("Error sending file:", err);
+        res.status(500).send("Error sending file");
+      } else {
+        console.log("Excel file downloaded successfully");
+      }
+    });
   } catch (error) {
     console.error("Error downloading bookings file:", error);
     res.status(500).send("Error downloading bookings file");
