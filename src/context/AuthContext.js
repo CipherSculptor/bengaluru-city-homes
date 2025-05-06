@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "../firebase/config";
 
@@ -209,6 +210,36 @@ export const AuthProvider = ({ children }) => {
     return currentUser !== null;
   };
 
+  // Password reset function
+  const resetPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return {
+        success: true,
+        message: "Password reset email sent successfully",
+      };
+    } catch (error) {
+      console.error("Error sending password reset email:", error);
+      let errorMessage = "Failed to send password reset email";
+
+      switch (error.code) {
+        case "auth/invalid-email":
+          errorMessage = "Invalid email address format";
+          break;
+        case "auth/user-not-found":
+          errorMessage = "No account found with this email";
+          break;
+        case "auth/too-many-requests":
+          errorMessage = "Too many requests. Please try again later";
+          break;
+        default:
+          errorMessage = error.message;
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const value = {
     currentUser,
     login,
@@ -217,6 +248,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     signInWithGoogle,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
